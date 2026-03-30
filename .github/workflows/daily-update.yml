@@ -1,0 +1,50 @@
+name: Daily Traction Dashboard Update
+
+on:
+  schedule:
+    # JST AM1:00 = UTC 16:00 (前日)
+    - cron: '0 16 * * *'
+  workflow_dispatch: # 手動実行も可能
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Japanese fonts
+        run: |
+          sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+
+      - name: Install dependencies
+        run: |
+          pip install gspread numpy matplotlib
+
+      - name: Fetch CSV from Google Sheets
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python scripts/fetch_csv.py
+
+      - name: Run traction_lite.py
+        env:
+          DATA_END_OVERRIDE: ${{ env.DATA_END_DATE }}
+        run: |
+          cd dashboard
+          python traction_lite.py
+
+      - name: Generate standalone HTML
+        run: |
+          python scripts/generate_standalone.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || (git commit -m "Auto-update dashboard $(date -u +%Y-%m-%d)" && git push)

@@ -21,8 +21,9 @@ USER_EXCLUDE = {"email"}
 CMP_EXCLUDE = {"content_q", "content_a", "responseTimeS", "user_role"}
 
 # Auth via JSON string from GitHub Secret
-# GitHub Secrets may mangle newlines in private_key; fix them
-sa_info = json.loads(SA_JSON.replace("\\n", "\n"))
+# GitHub Secrets stores JSON with literal newlines in private_key field.
+# json.loads with strict=False allows control characters.
+sa_info = json.loads(SA_JSON, strict=False)
 gc = gspread.service_account_from_dict(sa_info)
 sh = gc.open_by_key(SHEET_ID)
 

@@ -2718,7 +2718,6 @@ html = f'''<!DOCTYPE html>
     <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
     <b>リテンション</b>: ある期間に再びアクティブだったユーザーの割合。分母はコホート全員。<br>
     <b>ヘビーユーザー</b>: 28日間に10回以上検索した医師。習慣的利用の指標。<br>
-    <b>定着指数</b>: 4週間の週平均検索数が5回以上の医師数。定着ユーザー層の規模を示す。
   </p>
 </div>
 
@@ -2793,193 +2792,121 @@ html = f'''<!DOCTYPE html>
 </div>
 
 <div class="chart-section">
-  <h2>直近4週サマリー</h2>
-  <p class="def">WAU = D4+（登録4日以降）で週1回以上検索した医師数。WAU率 = WAU / 累計登録医師数。MAU = 28日窓のD4+アクティブ医師数。平均DAU = 週内の日別D4+検索者数の平均</p>
-  <table>
-    <tr><th>週</th><th>WAU</th><th>MAU</th><th>平均DAU</th><th>累計登録</th><th>WAU率</th><th>MAU率</th><th>DAU率</th></tr>
-{recent_rows}  </table>
-</div>
-
-<div class="chart-section">
-  <h2>KPI0: ヘビーユーザー（医師のみ）</h2>
+  <h2>1. ヘビーユーザー（医師のみ）【KPI0】</h2>
   <p class="def">【定義】上段: 過去28日間にD4+検索を10回以上行った医師数。中段: 同ユーザーの1人当たり平均検索回数。下段: 同ユーザーの1人当たり平均アクティブ日数（28日中何日使ったか）。<br>ヘビーユーザーの規模・利用頻度・利用日数を同じ時間軸で比較する。最重要KPI</p>
   <img src="chart11b_s15_habitual.png" alt="S15">
 </div>
 
 <div class="chart-section">
-  <h2>1. 登録月コホート別 WAU推移 — 医師のみ（ミルフィーユチャート）</h2>
+  <h2>2. 登録月コホート別 WAU推移 — 医師のみ（ミルフィーユチャート）</h2>
   <p class="def">登録月別に色分けした週間アクティブユーザー数の積み上げ面グラフ。<br>【定義】WAU = 当該週にD4+検索を1回以上行った医師数。D4+ = 登録から4日以上経過（初期探索期間を除外）</p>
   <img src="chart1_millefeuille.png" alt="Chart 1">
 </div>
 
 <div class="chart-section">
-  <h2>1b. 登録月コホート別 WAU推移 — 全ユーザー（ミルフィーユチャート）</h2>
+  <h2>3. 登録月コホート別 WAU推移 — 全ユーザー（ミルフィーユチャート）</h2>
   <p class="def">医師認証の有無を問わず、全メール登録ユーザーを対象。<br>【定義】WAU = 当該週にD4+検索を1回以上行ったユーザー数（全role=user）。Chart 1との差分が未認証アクティブユーザー</p>
   <img src="chart1b_millefeuille_all.png" alt="Chart 1b">
 </div>
 
 <div class="chart-section">
-  <h2>2a. KGI/KPI 週次推移 — 実績 vs 計画</h2>
+  <h2>4a. KGI/KPI 週次推移 — 実績 vs 計画</h2>
   <p class="def">上段: KGI = WAU（週間アクティブ医師数、D4+）。中段: KPI① = 累計登録医師数。下段: KPI② = WAU率（分子=WAU / 分母=累計登録医師数）。点線 = 計画線</p>
   <img src="chart3_kpi_trends.png" alt="Chart 2a">
 </div>
 
 <div class="chart-section">
-  <h2>2b. KGI/KPI 週次推移 — 実績のみ</h2>
+  <h2>4b. KGI/KPI 週次推移 — 実績のみ</h2>
   <p class="def">計画線なし。KGI/KPI実績のみ</p>
   <img src="chart3b_kpi_actual.png" alt="Chart 2b">
 </div>
 
 <div class="chart-section">
-  <h2>2c. KGI/KPI 週次推移 — 実績 vs 計画B（WAU=300 / 登録=3,000）</h2>
+  <h2>4c. KGI/KPI 週次推移 — 実績 vs 計画B（WAU=300 / 登録=3,000）</h2>
   <p class="def">WAU目標=300、登録目標=3,000、WAU率目標=10%</p>
   <img src="chart3c_kpi_planB.png" alt="Chart 2c">
 </div>
 
 <div class="chart-section">
-  <h2>2d. 登録ファネル: メール登録 vs 医師登録（累計 + 計画線）</h2>
-  <p class="def">メール登録（全role=user）と医師登録（免許確認完了）の累計推移 + 計画線。<br>計画線は確定転換率（{LATEST_CONV_RATE*100:.0f}%）を前提に、医師登録目標から逆算したメール登録の必要数。<br>計画A: 医師{TARGET_REG:,}人 → メール{EMAIL_TARGET_REG:,}人必要 / 計画B: 医師{TARGET_REG_B:,}人 → メール{EMAIL_TARGET_REG_B:,}人必要</p>
-  <img src="chart10b_cumulative_registrations.png" alt="Chart 2d">
-</div>
-
-<div class="chart-section">
-  <h2>2e. 登録ファネル: メール登録 × 医師登録転換率（4週ローリング）</h2>
+  <h2>5. 登録ファネル: メール登録 × 医師登録転換率（4週ローリング）</h2>
   <p class="def">直近4週のメール登録数と医師登録数、およびその転換率。<br>【注意】直近コホートはまだ医師認証に至っていない可能性があるため、転換率は構造的に低めに出る。確定転換率は{MATURED_CONV_RATE*100:.0f}%（登録{MATURATION_WEEKS}週以上前のコホートで算出）。<br>【定義】メール登録 = メールアドレスでアカウント作成した全ユーザー。医師登録 = 医師免許確認を完了した登録者。転換率 = 医師登録数 / メール登録数</p>
   <img src="chart10_reference_metrics.png" alt="Chart 2e">
 </div>
 
 <div class="chart-section">
-  <h2>2f. 登録ファネル — 4週ローリング</h2>
-  <p class="def">4週移動集計のメール登録数・医師登録数・転換率</p>
-  <table>
-    <tr><th>週末</th><th>メール登録（4週）</th><th>医師登録（4週）</th><th>転換率</th></tr>
-{ref_table_r4w}  </table>
-</div>
-
-<div class="chart-section">
-  <h2>2g. 登録ファネル — 週次詳細</h2>
-  <p class="def">直近4週の週次内訳（施策効果の個別確認用）</p>
-  <table>
-    <tr><th>週</th><th>メール登録</th><th>医師登録</th><th>転換率</th></tr>
-{ref_table_weekly}  </table>
-</div>
-
-<div class="chart-section">
-  <h2>3. コホート別リテンションカーブ（登録月基準）</h2>
+  <h2>6. コホート別リテンションカーブ（登録月基準）</h2>
   <p class="def">各期間に1回以上検索した医師の割合。<br>【定義】分子=当該期間に検索した医師数 / 分母=コホート全登録医師数。<br>D0-D3=登録0〜3日、D4-D10=登録4〜10日、M1=登録11〜40日、M2=登録41〜70日（以降30日刻み）。コホート=登録月。期間が未完了のコホートはその期間を非表示</p>
   <img src="chart2_retention_curve.png" alt="Chart 3">
 </div>
 
 <div class="chart-section">
-  <h2>4. 累計アクティベーション率</h2>
-  <p class="def">【定義】分子=D4+で1回以上検索した医師数（累計） / 分母=累計登録医師数。<br>登録した医師のうち、実際にプロダクトを使い始めた割合を示す</p>
-  <img src="chart4a_s1_activation.png" alt="S1">
-</div>
-
-<div class="chart-section">
-  <h2>5. WAU構成（新規 / 継続 / 復帰）</h2>
+  <h2>7. WAU構成（新規 / 継続 / 復帰）</h2>
   <p class="def">WAUの内訳を積み上げ棒グラフで表示。<br>【定義】新規=当週初めてD4+検索した医師。継続=前週もアクティブだった医師。復帰=2週以上ぶりに戻った医師。<br>継続比率が高いほど安定したエンゲージメントを示す</p>
   <img src="chart4b_s2_composition.png" alt="S2">
 </div>
 
 <div class="chart-section">
-  <h2>6. WAU/MAU スティッキネス</h2>
+  <h2>8. WAU/MAU スティッキネス</h2>
   <p class="def">【定義】分子=WAU / 分母=MAU（28日窓）。ユーザーがどれだけ頻繁に戻ってくるかを示す。<br>60%以上がSequoia基準で良好水準。数値が高いほど「習慣化」が進んでいる</p>
   <img src="chart5a_s5_stickiness.png" alt="S5">
 </div>
 
 <div class="chart-section">
-  <h2>7. DAU/MAU比率</h2>
+  <h2>9. DAU/MAU比率</h2>
   <p class="def">【定義】分子=平均DAU（週内の日別D4+検索者数の平均） / 分母=MAU（28日窓）。<br>ユーザーが月内で平均何割の日にアクティブかを示す。on-demand型プロダクトでは10〜20%が一般的</p>
   <img src="chart5b_s9_dau_mau.png" alt="S9">
 </div>
 
 <div class="chart-section">
-  <h2>8. 曜日別利用パターン</h2>
-  <p class="def">全期間の曜日別検索数（棒）とユニークユーザー数（折れ線）。業務時間帯に集中するかどうかで利用シーンを推測できる</p>
-  <img src="chart5c_s8_dow.png" alt="S8">
-</div>
-
-<div class="chart-section">
-  <h2>9. コホート別リテンション ヒートマップ（登録月基準）</h2>
+  <h2>10. コホート別リテンション ヒートマップ（登録月基準）</h2>
   <p class="def">登録月コホート × リテンション期間のマトリクス。<br>【定義】各セルの値 = 当該期間に1回以上検索した医師数 / コホート全登録医師数（%）。<br>期間: D0-D3=登録0〜3日、D4-D10=4〜10日、M1=11〜40日（以降30日刻み）。コホート全員の期間が未完了の列は非表示</p>
   <img src="chart6_retention_heatmap.png" alt="Chart 6">
 </div>
 
 <div class="chart-section">
-  <h2>10. アクティベーション後 月次リテンション</h2>
+  <h2>11. アクティベーション後 月次リテンション</h2>
   <p class="def">各ユーザーのD4+初検索日（=アクティベーション日）を起点とした30日ローリング窓でのリテンション。<br>【定義】M+0=アクティベーション日（100%）。M+1=アクティベーション後1〜30日目に1回以上検索した割合。M+2=31〜60日目。以降30日刻み。<br>分子=当該窓で検索した医師数 / 分母=コホート全員。コホート=アクティベーション月（初めてD4+検索した月）。コホート全員の期間が未完了の列は非表示</p>
   <img src="chart11c_s16_retention.png" alt="S16">
 </div>
 
 <div class="chart-section">
-  <h2>11. ユーザータイプ別 週次検索回数</h2>
-  <p class="def">ユーザータイプ別の週次平均検索回数。<br>【定義】継続ユーザー=前週もアクティブだった医師。新規=当週初めてD4+検索した医師。全WAU=当週のWAU全体</p>
-  <img src="chart11a_s13_search_depth.png" alt="S13">
-</div>
-
-<div class="chart-section">
-  <h2>12c. ヘビーユーザー数 & 平均検索回数 — 全ユーザー vs 医師のみ</h2>
-  <p class="def">【定義】棒グラフ: 過去28日間にD4+検索を10回以上行ったユーザー数（青=全、紫=医師）。折れ線（右軸）: 同ユーザーの1人当たり平均検索回数（橙=全、ピンク=医師）。<br>差分は未認証だが習慣的に利用しているユーザー</p>
-  <img src="chart11b2_s15b_habitual_all.png" alt="S15b">
-</div>
-
-<div class="chart-section">
-  <h2>12d. ヘビーユーザー / MAU 比率</h2>
+  <h2>12a. ヘビーユーザー / MAU 比率</h2>
   <p class="def">【定義】MAU（28日間D4+アクティブ医師）のうちヘビーユーザー（10回以上検索）が占める割合。<br>MAUの「質」を測る指標。MAU減少局面でも比率上昇なら、コアユーザーの深化が進んでいることを示す</p>
   <img src="chart12c_heavy_mau_ratio.png" alt="Heavy/MAU Ratio">
 </div>
 
 <div class="chart-section">
-  <h2>12e. ヘビーユーザー継続分析</h2>
+  <h2>12b. ヘビーユーザー継続分析</h2>
   <p class="def">【定義】上段: 今週のヘビーユーザーのうち、前週もヘビーだった人（継続）と今週新たにヘビーになった人（新規）の内訳。<br>下段: リテンション率＝前週もヘビーだった人 / <b>前週のヘビーユーザー総数</b>。前週のヘビーユーザーが翌週も残る割合を測る</p>
   <img src="chart12d_heavy_continuity.png" alt="Heavy User Continuity">
 </div>
 
 <div class="chart-section">
-  <h2>13. 定着指数（医師のみ）</h2>
-  <p class="def">【定義】4週間の週平均検索数が5回以上の医師数。<br>週に複数回利用する定着ユーザー層の規模を追跡する指標</p>
-  <img src="chart7_enthusiasm.png" alt="S11">
-</div>
-
-<div class="chart-section">
-  <h2>13b. 定着指数 — 全ユーザー vs 医師のみ</h2>
-  <p class="def">【定義】4週間の週平均検索数が5回以上のユーザー数。医師認証の有無を問わず全メール登録ユーザーを対象。<br>青=全ユーザー、ピンク=医師のみ。差分は未認証だが定着しているユーザー</p>
-  <img src="chart7b_enthusiasm_all.png" alt="S11b">
-</div>
-
-<div class="chart-section">
-  <h2>14. 週次検索ボリューム（D4+）</h2>
-  <p class="def">【定義】棒グラフ: 当該週のD4+検索の総回数（緑=医師、水色=非医師）。折れ線（右軸）: ユニークユーザー数。<br>検索回数の絶対量の推移と、利用者数の推移を同時に追跡する指標</p>
-  <img src="chart14_weekly_search_volume.png" alt="Weekly Search Volume">
-</div>
-
-<div class="chart-section">
-  <h2>14b. 週次検索ボリューム（D0-D3含む全検索）</h2>
+  <h2>13. 週次検索ボリューム（D0-D3含む全検索）</h2>
   <p class="def">【定義】棒グラフ: 当該週の全検索の総回数（D4+とD0-D3を分離、さらに医師/非医師で分離）。折れ線（右軸）: ユニークユーザー数。<br>D0-D3（登録直後の試用期間）の検索量を含めた全体像を把握する指標。Chart 14との差分がD0-D3の初期探索量</p>
   <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume All">
 </div>
 
 <div class="chart-section">
-  <h2>15. MAU（28日窓・D4+）</h2>
+  <h2>14. MAU（28日窓・D4+）</h2>
   <p class="def">【定義】過去28日間にD4+検索を1回以上行った医師数。WAUより長い観察窓で利用者の裾野を捉える</p>
   <img src="chart8a_mau.png" alt="MAU">
 </div>
 
 <div class="chart-section">
-  <h2>16. MAU率（MAU / 累計登録医師数）</h2>
+  <h2>15. MAU率（MAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=MAU / 分母=累計登録医師数。月次で見た利用率</p>
   <img src="chart8b_mau_rate.png" alt="MAU Rate">
 </div>
 
 <div class="chart-section">
-  <h2>17. 平均DAU（日次アクティブ医師数・D4+）</h2>
+  <h2>16. 平均DAU（日次アクティブ医師数・D4+）</h2>
   <p class="def">【定義】当該週の各日にD4+検索を行った医師数の7日間平均。日次の利用規模を示す</p>
   <img src="chart8c_avg_dau.png" alt="Avg DAU">
 </div>
 
 <div class="chart-section">
-  <h2>18. DAU率（平均DAU / 累計登録医師数）</h2>
+  <h2>17. DAU率（平均DAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=平均DAU / 分母=累計登録医師数。日次ベースでの利用率</p>
   <img src="chart8d_dau_rate.png" alt="DAU Rate">
 </div>
@@ -2988,13 +2915,6 @@ html = f'''<!DOCTYPE html>
   <h2>Reference: WAU\u7387\u306e\u5185\u90e8\u5206\u89e3 (\u30a2\u30af\u30c6\u30a3\u30d9\u30fc\u30b7\u30e7\u30f3\u7387 \u00d7 \u9031\u6b21\u7d99\u7d9a\u7387)</h2>
   <p class="def">WAU\u7387 = \u30a2\u30af\u30c6\u30a3\u30d9\u30fc\u30b7\u30e7\u30f3\u7387\uff08\u521d\u56deD4+\u5229\u7528\u6e08\u307f / \u767b\u9332\u533b\u5e2b\uff09\u00d7 \u9031\u6b21\u7d99\u7d9a\u7387\uff08\u4eca\u9031\u306eWAU / \u30a2\u30af\u30c6\u30a3\u30d9\u30fc\u30c8\u6e08\u307f\u533b\u5e2b\uff09\u3002\u7d2f\u7a4d\u6307\u6a19\u306e\u305f\u3081\u6025\u5909\u3057\u306a\u3044\u3002\u30b3\u30db\u30fc\u30c8\u5225\u306e\u8a73\u7d30\u306f\u30ea\u30c6\u30f3\u30b7\u30e7\u30f3\u30ab\u30fc\u30d6\uff08Chart 3\uff09\u3067\u78ba\u8a8d</p>
   <img src="chart9_kpi_decomposition.png" alt="Reference: WAU Rate Decomposition">
-</div>
-
-<div class="chart-section">
-  <h2>補助指標サマリー</h2>
-  <table>
-    <tr><th>指標名</th><th>最新値</th><th>定義</th></tr>
-{supp_rows}  </table>
 </div>
 
 <div class="footer">Cubec トラクションダッシュボード | 生成日: {DATA_END.strftime("%Y-%m-%d")}</div>

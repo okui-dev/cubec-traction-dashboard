@@ -5,7 +5,8 @@ import os
 import json
 from datetime import datetime, timezone, timedelta
 
-SA_JSON = os.environ["SERVICE_ACCOUNT_JSON"]
+import base64
+SA_JSON_B64 = os.environ["SERVICE_ACCOUNT_JSON"]
 SHEET_ID = "1gPIZiWiKxTenKOUtnO7b5OqI0UycQ0qbrdv_SkEcKg0"
 DATA_DIR = "dashboard/data"
 
@@ -21,9 +22,8 @@ USER_EXCLUDE = {"email"}
 CMP_EXCLUDE = {"content_q", "content_a", "responseTimeS", "user_role"}
 
 # Auth via JSON string from GitHub Secret
-# GitHub Secrets stores JSON with literal newlines in private_key field.
-# json.loads with strict=False allows control characters.
-sa_info = json.loads(SA_JSON, strict=False)
+# Secret is base64-encoded to avoid JSON escaping issues
+sa_info = json.loads(base64.b64decode(SA_JSON_B64).decode("utf-8"))
 gc = gspread.service_account_from_dict(sa_info)
 sh = gc.open_by_key(SHEET_ID)
 

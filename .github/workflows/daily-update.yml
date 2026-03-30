@@ -6,6 +6,9 @@ on:
     - cron: '0 16 * * *'
   workflow_dispatch: # 手動実行も可能
 
+permissions:
+  contents: write
+
 jobs:
   update-dashboard:
     runs-on: ubuntu-latest

@@ -457,7 +457,7 @@ fig, ax = plt.subplots(figsize=(14, 7))
 ax.stackplot(all_weeks, mille_matrix, labels=all_cohorts_mille, colors=colors, alpha=0.85)
 ax.set_xlabel("週", fontsize=12)
 ax.set_ylabel("WAU（人）", fontsize=12)
-ax.set_title("1. 登録月コホート別 WAU推移（ミルフィーユチャート）", fontsize=14, fontweight="bold")
+ax.set_title("6. コホート別WAU推移 — 医師のみ（ミルフィーユチャート）", fontsize=14, fontweight="bold")
 ax.legend(title="Registration Cohort", loc="upper left", fontsize=9, title_fontsize=10, ncol=2)
 
 # X-axis labels
@@ -512,7 +512,7 @@ fig1b, ax1b = plt.subplots(figsize=(14, 7))
 ax1b.stackplot(all_weeks_1b, mille_matrix_1b, labels=all_cohorts_mille_1b, colors=colors_1b, alpha=0.85)
 ax1b.set_xlabel("週", fontsize=12)
 ax1b.set_ylabel("WAU（人）", fontsize=12)
-ax1b.set_title("1b. 登録月コホート別 WAU推移 — 全ユーザー（ミルフィーユチャート）", fontsize=14, fontweight="bold")
+ax1b.set_title("6b. コホート別WAU推移 — 全ユーザー（ミルフィーユチャート）", fontsize=14, fontweight="bold")
 ax1b.legend(title="Registration Cohort", loc="upper left", fontsize=9, title_fontsize=10, ncol=2)
 
 fd1b, ld1b = all_weeks_1b[0], all_weeks_1b[-1]
@@ -659,7 +659,7 @@ for i, label in enumerate(ret_labels):
 
 ax.set_xlabel("登録からの経過期間", fontsize=12)
 ax.set_ylabel("リテンション率（%）", fontsize=12)
-ax.set_title("3. コホート別リテンションカーブ（登録月基準）", fontsize=14, fontweight="bold")
+ax.set_title("8. コホート別リテンションカーブ（登録月基準）", fontsize=14, fontweight="bold")
 ax.legend(title="Registration Cohort", loc="upper right", fontsize=9, title_fontsize=10, ncol=2)
 ax.set_ylim(0, 105)
 ax.set_xlim(-0.3, max_p + 1.5)
@@ -838,7 +838,7 @@ fig3b, axes3b = plt.subplots(3, 1, figsize=(14, 12), sharex=True)
 ax1 = axes3b[0]
 ax1.plot(common_weeks, wau_vals, marker="o", markersize=4, linewidth=2, color="#2196F3")
 ax1.set_ylabel("WAU（人）", fontsize=11)
-ax1.set_title("2b. KGI/KPI 週次推移 — 実績のみ", fontsize=14, fontweight="bold")
+ax1.set_title("(旧) WAU KPI推移 — 実績のみ", fontsize=14, fontweight="bold")
 ax1.text(0.01, 0.95, "WAU (D4+)", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#2196F3")
 for idx in [0, -1]:
@@ -891,7 +891,7 @@ ax1.scatter([PLAN_B_WEEKS[-1]], [PLAN_B_WAU[-1]], marker="*", s=120, color="#219
 ax1.annotate(f"目標: {TARGET_WAU_B}", (PLAN_B_WEEKS[-1], PLAN_B_WAU[-1]),
              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#2196F3", fontweight="bold")
 ax1.set_ylabel("WAU（人）", fontsize=11)
-ax1.set_title("2c. KGI/KPI 週次推移 — 実績 vs 計画B（WAU=300 / 登録=3,000）", fontsize=14, fontweight="bold")
+ax1.set_title("(旧) WAU KPI推移 — 計画B（WAU=300）", fontsize=14, fontweight="bold")
 ax1.text(0.01, 0.95, "WAU (D4+)", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#2196F3")
 ax1.legend(loc="center left", fontsize=8, framealpha=0.7)
@@ -1666,7 +1666,7 @@ s1_vals = [act_rate_ts[w] for w in s1_weeks]
 ax.plot(s1_weeks, s1_vals, marker="o", ms=5, lw=2, color="#2196F3")
 ax.set_ylabel("アクティベーション率（%）")
 ax.set_ylim(0, 105)
-ax.set_title("4. 累計アクティベーション率", fontsize=14, fontweight="bold")
+ax.set_title("(参考) 累計アクティベーション率", fontsize=14, fontweight="bold")
 if s1_vals:
     ax.annotate(f"{s1_vals[-1]:.1f}%", (s1_weeks[-1], s1_vals[-1]),
                 textcoords="offset points", xytext=(0, 10), ha="center", fontsize=10)
@@ -1690,7 +1690,7 @@ ax.bar(_s2_x, s2_c, width=0.7, label="継続", color="#4CAF50")
 ax.bar(_s2_x, s2_r, width=0.7, bottom=s2_c, label="復帰", color="#FF9800")
 ax.bar(_s2_x, s2_n, width=0.7, bottom=s2_cr, label="新規", color="#2196F3")
 ax.set_ylabel("WAU（人）")
-ax.set_title("5. WAU構成（新規 / 継続 / 復帰）", fontsize=14, fontweight="bold")
+ax.set_title("7. WAU構成（新規 / 継続 / 復帰）", fontsize=14, fontweight="bold")
 ax.legend(fontsize=9, loc="upper left")
 set_weekly_xticks(ax, s2_weeks, equal_spacing=True)
 fig.tight_layout()
@@ -1711,7 +1711,7 @@ s5_vals = [s5_ratio[w] for w in s5_weeks]
 ax.plot(s5_weeks, s5_vals, marker="o", ms=5, lw=2, color="#00BCD4")
 ax.axhline(y=60, color="gray", ls="--", alpha=0.5, label="60%（Sequoia基準）")
 ax.set_ylabel("WAU/MAU（%）")
-ax.set_title("6. WAU/MAU スティッキネス", fontsize=14, fontweight="bold")
+ax.set_title("11. WAU/MAU スティッキネス", fontsize=14, fontweight="bold")
 ax.legend(fontsize=9)
 if s5_vals:
     ax.annotate(f"{s5_vals[-1]:.1f}%", (s5_weeks[-1], s5_vals[-1]),
@@ -1732,7 +1732,7 @@ s9_weeks = [w for w in exp_chart_weeks if w in s9_ratio]
 s9_vals = [s9_ratio[w] for w in s9_weeks]
 ax.plot(s9_weeks, s9_vals, marker="o", ms=5, lw=2, color="#795548")
 ax.set_ylabel("DAU/MAU（%）")
-ax.set_title("7. DAU/MAU比率", fontsize=14, fontweight="bold")
+ax.set_title("12. DAU/MAU比率", fontsize=14, fontweight="bold")
 if s9_vals:
     ax.annotate(f"{s9_vals[-1]:.1f}%", (s9_weeks[-1], s9_vals[-1]),
                 textcoords="offset points", xytext=(0, 10), ha="center", fontsize=10)
@@ -1755,7 +1755,7 @@ ax.bar(x8, s8_searches, color="#607D8B", alpha=0.7, label="検索数")
 ax.set_xticks(x8)
 ax.set_xticklabels(dow_labels)
 ax.set_ylabel("検索数")
-ax.set_title("8. 曜日別利用パターン", fontsize=14, fontweight="bold")
+ax.set_title("(参考) 曜日別利用パターン", fontsize=14, fontweight="bold")
 ax8r = ax.twinx()
 ax8r.plot(x8, s8_users, marker="o", color="#E91E63", lw=2, label="ユニークユーザー数")
 ax8r.set_ylabel("ユニークユーザー数", color="#E91E63")
@@ -1799,7 +1799,7 @@ for i in range(len(hm_labels)):
         if not np.isnan(v):
             ax6.text(j, i, f"{v:.1f}", ha="center", va="center", fontsize=9)
 fig6.colorbar(im, ax=ax6, label="リテンション率（%）")
-ax6.set_title("9. コホート別リテンション ヒートマップ（登録月基準）", fontsize=14, fontweight="bold")
+ax6.set_title("9. コホート別リテンション ヒートマップ（登録月基準）", fontsize=13, fontweight="bold")
 ax6.set_xlabel("リテンション期間")
 ax6.set_ylabel("登録月コホート")
 fig6.tight_layout()
@@ -1827,7 +1827,7 @@ for bar, val in zip(bars, ec11):
     ax7.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
             str(int(val)), ha="center", fontsize=8)
 ax7.set_ylabel("定着指数（週平均5回以上の医師数）")
-ax7.set_title("13. 定着指数（4週ローリング）", fontweight="bold")
+ax7.set_title("(参考) 定着指数（4週ローリング）", fontweight="bold")
 set_weekly_xticks(ax7, ec_weeks, equal_spacing=True)
 
 fig7.tight_layout()
@@ -1847,7 +1847,7 @@ for bar, val_a, val_d in zip(bars_all, ec11_all, ec11_doc):
     ax7b.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
               str(int(val_a)), ha="center", fontsize=8, color="#1976D2")
 ax7b.set_ylabel("定着指数（週平均5回以上のユーザー数）")
-ax7b.set_title("13b. 定着指数 — 全ユーザー vs 医師のみ（4週ローリング）", fontweight="bold")
+ax7b.set_title("(参考) 定着指数 — 全ユーザー vs 医師のみ", fontweight="bold")
 ax7b.legend(loc="upper left", fontsize=9)
 set_weekly_xticks(ax7b, ec_weeks_b, equal_spacing=True)
 fig7b.tight_layout()
@@ -1873,7 +1873,7 @@ ax.plot(s13_weeks, [s13_all_avg.get(w, 0) for w in s13_weeks],
 ax.plot(s13_weeks, [s13_new_avg.get(w, 0) for w in s13_weeks],
         marker="^", ms=4, lw=1, color="#BDBDBD", alpha=0.7, label="新規")
 ax.set_ylabel("平均検索回数 / ユーザー / 週")
-ax.set_title("11. ユーザータイプ別 週次検索回数", fontsize=14, fontweight="bold")
+ax.set_title("(参考) ユーザータイプ別 週次検索回数", fontsize=14, fontweight="bold")
 ax.legend(fontsize=9, loc="upper left")
 if s13_weeks:
     ax.annotate(f"Ret:{s13_ret_avg.get(s13_weeks[-1],0):.1f}",
@@ -1900,7 +1900,7 @@ fig, (ax_top, ax_mid, ax_bot) = plt.subplots(3, 1, figsize=(10, 10), sharex=True
 # Top: 棒グラフ — ヘビーユーザー数
 ax_top.bar(_s15_x, s15_c_vals, width=0.7, color="#9C27B0", alpha=0.8)
 ax_top.set_ylabel("ヘビーユーザー数")
-ax_top.set_title("12. ヘビーユーザー（28日間10回以上検索・医師のみ）", fontsize=14, fontweight="bold")
+ax_top.set_title("2. ヘビーユーザー詳細（人数・検索回数・アクティブ日数）", fontsize=14, fontweight="bold")
 if s15_c_vals:
     for _xi, _v in zip(_s15_x, s15_c_vals):
         ax_top.text(_xi, _v + 0.3, str(_v), ha="center", fontsize=9, color="#9C27B0", fontweight="bold")
@@ -1938,7 +1938,7 @@ _s15b_x = list(range(len(s15b_weeks)))
 ax.bar(_s15b_x, s15b_c_vals, width=0.7, color="#90CAF9", alpha=0.8, label="全ユーザー数")
 ax.bar(_s15b_x, s15_c_vals2, width=0.7, color="#9C27B0", alpha=0.8, label="医師のみ数")
 ax.set_ylabel("ヘビーユーザー数")
-ax.set_title("12b. ヘビーユーザー数 & 平均検索回数 — 全ユーザー vs 医師のみ", fontsize=13, fontweight="bold")
+ax.set_title("(参考) ヘビーユーザー — 全ユーザー vs 医師のみ", fontsize=13, fontweight="bold")
 if s15b_c_vals:
     for _xi, _va, _vd in zip(_s15b_x, s15b_c_vals, s15_c_vals2):
         ax.text(_xi, _va + 0.5, str(_va), ha="center", fontsize=9, color="#1976D2", fontweight="bold")
@@ -2023,7 +2023,7 @@ ax1.scatter([HEAVY_PLAN_WEEKS[-1]], [HEAVY_PLAN_VALS[-1]], marker="*", s=120, co
 ax1.annotate(f"目標: {TARGET_HEAVY}", (HEAVY_PLAN_WEEKS[-1], HEAVY_PLAN_VALS[-1]),
              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#7B1FA2", fontweight="bold")
 ax1.set_ylabel("ヘビーユーザー数", fontsize=11)
-ax1.set_title("1. KGI/KPI 週次推移 — 実績 vs 計画", fontsize=14, fontweight="bold")
+ax1.set_title("1. KGI/KPI 週次推移 — ヘビーユーザー分解（実績 vs 計画）", fontsize=14, fontweight="bold")
 ax1.text(0.01, 0.95, "KGI: ヘビーユーザー数（28日間10回以上検索・医師）", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#7B1FA2")
 ax1.legend(loc="center left", fontsize=8, framealpha=0.7)
@@ -2113,7 +2113,7 @@ ax.fill_between(_s15c_x, _s15c_pct, alpha=0.15, color="#9C27B0")
 for _xi, _v in zip(_s15c_x, _s15c_pct):
     ax.text(_xi, _v + 0.5, f"{_v:.1f}%", ha="center", fontsize=9, color="#9C27B0", fontweight="bold")
 ax.set_ylabel("ヘビーユーザー / MAU (%)")
-ax.set_title("12c. ヘビーユーザー比率（MAU中のヘビーユーザー割合）", fontsize=14, fontweight="bold")
+ax.set_title("4. ヘビーユーザー / MAU 比率", fontsize=14, fontweight="bold")
 ax.set_xticks(_s15c_x)
 ax.set_xticklabels(_s15c_xlabels, rotation=45, ha="right")
 ax.set_ylim(0, max(_s15c_pct) * 1.3 if _s15c_pct else 30)
@@ -2141,7 +2141,7 @@ for _xi, _vc, _vn in zip(_s15d_x, _s15d_cont, _s15d_new):
         if _vc > 0:
             ax_top.text(_xi, _vc / 2, str(_vc), ha="center", fontsize=9, color="white", fontweight="bold")
 ax_top.set_ylabel("ヘビーユーザー数")
-ax_top.set_title("12d. ヘビーユーザー継続分析（前週もヘビーだったか）", fontsize=14, fontweight="bold")
+ax_top.set_title("3. ヘビーユーザー継続分析", fontsize=14, fontweight="bold")
 ax_top.legend(loc="upper left", fontsize=9)
 
 # Bottom: line — リテンション率（前週ヘビーのうち今週も残った割合）
@@ -2177,7 +2177,7 @@ if s16_cohorts and s16_wavg:
     ax.set_xticklabels([f"M+{i}" for i in range(n_months_b)])
     ax.set_yticks(range(n_rows_b))
     ax.set_yticklabels([f"{cm} (n={s16_matrix[cm]['n']})" for cm in s16_cohorts] + ["加重平均"], fontsize=9)
-    ax.set_title("10. アクティベーション後 月次リテンション（30日ローリング）", fontsize=13, fontweight="bold")
+    ax.set_title("10. アクティベーション後 月次リテンション", fontsize=13, fontweight="bold")
     for r in range(n_rows_b):
         for c in range(n_months_b):
             val = hm_array_16b[r, c]
@@ -2250,7 +2250,7 @@ fig9, axes9 = plt.subplots(3, 1, figsize=(14, 12), sharex=True)
 ax = axes9[0]
 ax.plot(common_weeks, reg_vals, marker="o", markersize=4, linewidth=2, color="#4CAF50")
 ax.set_ylabel("累計登録医師数", fontsize=11)
-ax.set_title("参考: WAU率の内部分解（登録医師数 × アクティベーション率 × 週次継続率）", fontsize=14, fontweight="bold")
+ax.set_title("Ref. WAU率の内部分解（アクティベーション率 × 週次継続率）", fontsize=14, fontweight="bold")
 ax.text(0.01, 0.95, "KPI1: \u767b\u9332\u533b\u5e2b\u6570", transform=ax.transAxes,
         fontsize=10, fontweight="bold", va="top", color="#4CAF50")
 for idx in [0, -1]:
@@ -2350,7 +2350,7 @@ if r4w_chart_rate:
                    textcoords="offset points", xytext=(0, 10), ha="center", fontsize=10,
                    fontweight="bold", color="#E65100")
 
-ax10a.set_title("登録ファネル: メール登録 × 医師登録転換率（4週ローリング）", fontsize=14, fontweight="bold")
+ax10a.set_title("5. 登録ファネル: メール登録 × 医師登録転換率（4週ローリング）", fontsize=14, fontweight="bold")
 
 # Combined legend
 h1, l1 = ax10a.get_legend_handles_labels()
@@ -2440,7 +2440,7 @@ if EMAIL_PLAN_B_REG:
                      textcoords="offset points", xytext=(5, -8), ha="left", fontsize=9,
                      color="#1976D2", alpha=0.6)
 
-ax10b_l.set_title("登録ファネル: メール登録 vs 医師登録（累計 + 計画線）", fontsize=14, fontweight="bold")
+ax10b_l.set_title("(参考) 登録ファネル: メール登録 vs 医師登録（累計 + 計画線）", fontsize=14, fontweight="bold")
 ax10b_l.legend(loc="upper left", fontsize=8, ncol=2)
 
 # Note about conversion rate assumption
@@ -2518,7 +2518,7 @@ if c14_total_all:
                    textcoords="offset points", xytext=(8, -8), ha="left",
                    fontsize=9, color="#388E3C")
 
-ax14.set_title("週次検索ボリューム（D4+）", fontsize=14, fontweight="bold")
+ax14.set_title("(参考) 週次検索ボリューム（D4+）", fontsize=14, fontweight="bold")
 
 # Combined legend
 lines1, labels1 = ax14.get_legend_handles_labels()
@@ -2574,7 +2574,7 @@ if c14b_total_all:
                      textcoords="offset points", xytext=(8, 5), ha="left",
                      fontsize=9, color="#1565C0")
 
-ax14b.set_title("週次検索ボリューム（全検索）", fontsize=14, fontweight="bold")
+ax14b.set_title("13. 週次検索ボリューム（全検索）", fontsize=14, fontweight="bold")
 
 lines1b, labels1b = ax14b.get_legend_handles_labels()
 lines2b, labels2b = ax14b_r.get_legend_handles_labels()

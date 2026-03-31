@@ -2013,7 +2013,7 @@ while _hp_w <= _hp_end_date:
     HEAVY_PLAN_HEAVY_RATE.append(_hr)
     _hp_w += timedelta(days=7)
 
-fig3, axes3 = plt.subplots(4, 1, figsize=(14, 16), sharex=True)
+fig3, axes3 = plt.subplots(5, 1, figsize=(14, 20), sharex=True)
 
 # 1段目: KGI: ヘビーユーザー数
 ax1 = axes3[0]
@@ -2023,7 +2023,7 @@ ax1.scatter([HEAVY_PLAN_WEEKS[-1]], [HEAVY_PLAN_VALS[-1]], marker="*", s=120, co
 ax1.annotate(f"目標: {TARGET_HEAVY}", (HEAVY_PLAN_WEEKS[-1], HEAVY_PLAN_VALS[-1]),
              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#7B1FA2", fontweight="bold")
 ax1.set_ylabel("ヘビーユーザー数", fontsize=11)
-ax1.set_title("4a. KGI/KPI 週次推移 — 実績 vs 計画", fontsize=14, fontweight="bold")
+ax1.set_title("1. KGI/KPI 週次推移 — 実績 vs 計画", fontsize=14, fontweight="bold")
 ax1.text(0.01, 0.95, "KGI: ヘビーユーザー数（28日間10回以上検索・医師）", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#7B1FA2")
 ax1.legend(loc="center left", fontsize=8, framealpha=0.7)
@@ -2033,33 +2033,38 @@ for idx in [0, -1]:
                      textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
 ax1.set_xlim(fd3 - timedelta(days=3), ld3_extended + timedelta(days=7))
 
-# 2段目: KPI-1: 登録医師数 + メール登録数（2軸）
+# 2段目: KPI1: 登録医師数
 ax2 = axes3[1]
-ax2.plot(common_weeks, reg_vals, marker="o", markersize=4, linewidth=2, color="#4CAF50", label="医師登録（実績）")
-ax2.plot(PLAN_WEEKS, PLAN_REG, linestyle="--", linewidth=1.5, color="#4CAF50", alpha=0.4, label="医師登録（計画）")
+ax2.plot(common_weeks, reg_vals, marker="o", markersize=4, linewidth=2, color="#4CAF50", label="実績")
+ax2.plot(PLAN_WEEKS, PLAN_REG, linestyle="--", linewidth=1.5, color="#4CAF50", alpha=0.4, label="計画")
 ax2.scatter([PLAN_WEEKS[-1]], [PLAN_REG[-1]], marker="*", s=120, color="#4CAF50", alpha=0.6, zorder=5)
 ax2.annotate(f"目標: {TARGET_REG:,}", (PLAN_WEEKS[-1], PLAN_REG[-1]),
              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#4CAF50", fontweight="bold")
-ax2r = ax2.twinx()
-ax2r.plot(common_weeks, email_reg_vals, marker="s", markersize=3, linewidth=1.5, color="#1976D2", alpha=0.7, label="メール登録（実績）")
-ax2r.plot(EMAIL_PLAN_WEEKS, EMAIL_PLAN_REG, linestyle="--", linewidth=1, color="#1976D2", alpha=0.3, label="メール登録（計画）")
-ax2r.set_ylabel("累計メール登録数", fontsize=11, color="#1976D2")
-ax2r.tick_params(axis="y", labelcolor="#1976D2")
-ax2.set_ylabel("累計登録医師数", fontsize=11, color="#4CAF50")
-ax2.tick_params(axis="y", labelcolor="#4CAF50")
-ax2.text(0.01, 0.95, "KPI1: 登録医師数（緑）+ メール登録数（青）", transform=ax2.transAxes,
-         fontsize=10, fontweight="bold", va="top", color="#333")
-lines1, labels1 = ax2.get_legend_handles_labels()
-lines2, labels2 = ax2r.get_legend_handles_labels()
-ax2.legend(lines1 + lines2, labels1 + labels2, loc="center left", fontsize=7, framealpha=0.7)
+ax2.set_ylabel("累計登録医師数", fontsize=11)
+ax2.text(0.01, 0.95, "KPI1: 登録医師数", transform=ax2.transAxes,
+         fontsize=10, fontweight="bold", va="top", color="#4CAF50")
+ax2.legend(loc="center left", fontsize=8, framealpha=0.7)
 for idx in [0, -1]:
     ax2.annotate(f"{reg_vals[idx]}", (common_weeks[idx], reg_vals[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#4CAF50")
-    ax2r.annotate(f"{email_reg_vals[idx]}", (common_weeks[idx], email_reg_vals[idx]),
-                  textcoords="offset points", xytext=(0, -12), ha="center", fontsize=8, color="#1976D2")
+                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
 
-# 3段目: KPI-2: MAU率
-ax3a = axes3[2]
+# 3段目: 参考: メール登録数
+ax2e = axes3[2]
+ax2e.plot(common_weeks, email_reg_vals, marker="o", markersize=4, linewidth=2, color="#1976D2", label="実績")
+ax2e.plot(EMAIL_PLAN_WEEKS, EMAIL_PLAN_REG, linestyle="--", linewidth=1.5, color="#1976D2", alpha=0.4, label=f"計画（確定転換率{LATEST_CONV_RATE*100:.0f}%）")
+ax2e.scatter([EMAIL_PLAN_WEEKS[-1]], [EMAIL_PLAN_REG[-1]], marker="*", s=120, color="#1976D2", alpha=0.6, zorder=5)
+ax2e.annotate(f"必要数: {EMAIL_TARGET_REG:,}", (EMAIL_PLAN_WEEKS[-1], EMAIL_PLAN_REG[-1]),
+              textcoords="offset points", xytext=(-60, 10), ha="center", fontsize=9, color="#1976D2", fontweight="bold")
+ax2e.set_ylabel("累計メール登録数", fontsize=11)
+ax2e.text(0.01, 0.95, "参考: メール登録数", transform=ax2e.transAxes,
+          fontsize=10, fontweight="bold", va="top", color="#1976D2")
+ax2e.legend(loc="center left", fontsize=8, framealpha=0.7)
+for idx in [0, -1]:
+    ax2e.annotate(f"{email_reg_vals[idx]}", (common_weeks[idx], email_reg_vals[idx]),
+                  textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+
+# 4段目: KPI2: MAU率
+ax3a = axes3[3]
 ax3a.plot(common_weeks, mau_rate_vals_cw, marker="o", markersize=4, linewidth=2, color="#E91E63", label="実績")
 ax3a.plot(HEAVY_PLAN_WEEKS, HEAVY_PLAN_MAU_RATE, linestyle="--", linewidth=1.5, color="#E91E63", alpha=0.4, label="計画")
 ax3a.scatter([HEAVY_PLAN_WEEKS[-1]], [TARGET_MAU_RATE], marker="*", s=120, color="#E91E63", alpha=0.6, zorder=5)
@@ -2073,8 +2078,8 @@ for idx in [0, -1]:
     ax3a.annotate(f"{mau_rate_vals_cw[idx]:.1f}%", (common_weeks[idx], mau_rate_vals_cw[idx]),
                  textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
 
-# 4段目: KPI-3: ヘビー化率（Heavy / MAU）
-ax4 = axes3[3]
+# 5段目: KPI3: ヘビー化率（Heavy / MAU）
+ax4 = axes3[4]
 ax4.plot(common_weeks, heavy_rate_vals_cw, marker="o", markersize=4, linewidth=2, color="#FF9800", label="実績")
 ax4.plot(HEAVY_PLAN_WEEKS, HEAVY_PLAN_HEAVY_RATE, linestyle="--", linewidth=1.5, color="#FF9800", alpha=0.4, label="計画")
 ax4.scatter([HEAVY_PLAN_WEEKS[-1]], [TARGET_HEAVY_RATE], marker="*", s=120, color="#FF9800", alpha=0.6, zorder=5)
@@ -2850,7 +2855,7 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>1. KGI/KPI 週次推移 — ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">上段: KGI = ヘビーユーザー数（28日間10回以上検索・医師）。2段目: KPI1 = 登録医師数（緑）+ メール登録数（青）。3段目: KPI2 = MAU率。4段目: KPI3 = ヘビー化率。点線 = 計画線<br>目標（6月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
+  <p class="def">1段目: KGI = ヘビーユーザー数。2段目: KPI1 = 登録医師数。3段目: メール登録数（参考）。4段目: KPI2 = MAU率。5段目: KPI3 = ヘビー化率。点線 = 計画線<br>目標（6月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
   <img src="chart3_kpi_trends.png" alt="KGI/KPI Trends">
 </div>
 

@@ -839,7 +839,7 @@ ax1 = axes3b[0]
 ax1.plot(common_weeks, wau_vals, marker="o", markersize=4, linewidth=2, color="#2196F3")
 ax1.set_ylabel("WAU（人）", fontsize=11)
 ax1.set_title("2b. KGI/KPI 週次推移 — 実績のみ", fontsize=14, fontweight="bold")
-ax1.text(0.01, 0.95, "KGI: WAU (D4+)", transform=ax1.transAxes,
+ax1.text(0.01, 0.95, "WAU (D4+)", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#2196F3")
 for idx in [0, -1]:
     ax1.annotate(f"{wau_vals[idx]}", (common_weeks[idx], wau_vals[idx]),
@@ -850,7 +850,7 @@ ax1.set_xlim(fd3b - timedelta(days=3), ld3b + timedelta(days=7))
 ax2 = axes3b[1]
 ax2.plot(common_weeks, reg_vals, marker="o", markersize=4, linewidth=2, color="#4CAF50")
 ax2.set_ylabel("累計登録医師数", fontsize=11)
-ax2.text(0.01, 0.95, "KPI①: 累計登録医師数", transform=ax2.transAxes,
+ax2.text(0.01, 0.95, "累計登録医師数", transform=ax2.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#4CAF50")
 for idx in [0, -1]:
     ax2.annotate(f"{reg_vals[idx]}", (common_weeks[idx], reg_vals[idx]),
@@ -861,7 +861,7 @@ ax3 = axes3b[2]
 ax3.plot(common_weeks, rate_vals, marker="o", markersize=4, linewidth=2, color="#FF9800")
 ax3.set_ylabel("WAU Rate (%)", fontsize=11)
 ax3.set_xlabel("週", fontsize=12)
-ax3.text(0.01, 0.95, "KPI②: WAU率（WAU / 累計登録医師数）", transform=ax3.transAxes,
+ax3.text(0.01, 0.95, "WAU率（WAU / 累計登録医師数）", transform=ax3.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#FF9800")
 for idx in [0, -1]:
     ax3.annotate(f"{rate_vals[idx]:.1f}%", (common_weeks[idx], rate_vals[idx]),
@@ -892,7 +892,7 @@ ax1.annotate(f"目標: {TARGET_WAU_B}", (PLAN_B_WEEKS[-1], PLAN_B_WAU[-1]),
              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#2196F3", fontweight="bold")
 ax1.set_ylabel("WAU（人）", fontsize=11)
 ax1.set_title("2c. KGI/KPI 週次推移 — 実績 vs 計画B（WAU=300 / 登録=3,000）", fontsize=14, fontweight="bold")
-ax1.text(0.01, 0.95, "KGI: WAU (D4+)", transform=ax1.transAxes,
+ax1.text(0.01, 0.95, "WAU (D4+)", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#2196F3")
 ax1.legend(loc="center left", fontsize=8, framealpha=0.7)
 for idx in [0, -1]:
@@ -908,7 +908,7 @@ ax2.scatter([PLAN_B_WEEKS[-1]], [PLAN_B_REG[-1]], marker="*", s=120, color="#4CA
 ax2.annotate(f"目標: {TARGET_REG_B:,}", (PLAN_B_WEEKS[-1], PLAN_B_REG[-1]),
              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#4CAF50", fontweight="bold")
 ax2.set_ylabel("累計登録医師数", fontsize=11)
-ax2.text(0.01, 0.95, "KPI①: 累計登録医師数", transform=ax2.transAxes,
+ax2.text(0.01, 0.95, "累計登録医師数", transform=ax2.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#4CAF50")
 ax2.legend(loc="center left", fontsize=8, framealpha=0.7)
 for idx in [0, -1]:
@@ -940,7 +940,7 @@ ax3.annotate(f"目標: {TARGET_WAU_RATE_B}%", (PLAN_B_WEEKS[-1], PLAN_B_RATE[-1]
 ax3.set_ylabel("WAU Rate (%)", fontsize=11)
 ax3.set_xlabel("週", fontsize=12)
 ax3.legend(loc="center left", fontsize=8, framealpha=0.7)
-ax3.text(0.01, 0.95, "KPI②: WAU率（WAU / 累計登録医師数）", transform=ax3.transAxes,
+ax3.text(0.01, 0.95, "WAU率（WAU / 累計登録医師数）", transform=ax3.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#FF9800")
 for idx in [0, -1]:
     ax3.annotate(f"{rate_vals[idx]:.1f}%", (common_weeks[idx], rate_vals[idx]),
@@ -2047,7 +2047,7 @@ ax2r.set_ylabel("累計メール登録数", fontsize=11, color="#1976D2")
 ax2r.tick_params(axis="y", labelcolor="#1976D2")
 ax2.set_ylabel("累計登録医師数", fontsize=11, color="#4CAF50")
 ax2.tick_params(axis="y", labelcolor="#4CAF50")
-ax2.text(0.01, 0.95, "KPI①: 登録医師数（緑）+ メール登録数（青）", transform=ax2.transAxes,
+ax2.text(0.01, 0.95, "KPI1: 登録医師数（緑）+ メール登録数（青）", transform=ax2.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#333")
 lines1, labels1 = ax2.get_legend_handles_labels()
 lines2, labels2 = ax2r.get_legend_handles_labels()
@@ -2066,7 +2066,7 @@ ax3a.scatter([HEAVY_PLAN_WEEKS[-1]], [TARGET_MAU_RATE], marker="*", s=120, color
 ax3a.annotate(f"目標: {TARGET_MAU_RATE}%", (HEAVY_PLAN_WEEKS[-1], TARGET_MAU_RATE),
               textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#E91E63", fontweight="bold")
 ax3a.set_ylabel("MAU率 (%)", fontsize=11)
-ax3a.text(0.01, 0.95, "KPI②: MAU率（MAU / 累計登録医師数）", transform=ax3a.transAxes,
+ax3a.text(0.01, 0.95, "KPI2: MAU率（MAU / 累計登録医師数）", transform=ax3a.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#E91E63")
 ax3a.legend(loc="center left", fontsize=8, framealpha=0.7)
 for idx in [0, -1]:
@@ -2082,7 +2082,7 @@ ax4.annotate(f"目標: {TARGET_HEAVY_RATE}%", (HEAVY_PLAN_WEEKS[-1], TARGET_HEAV
              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#FF9800", fontweight="bold")
 ax4.set_ylabel("ヘビー化率 (%)", fontsize=11)
 ax4.set_xlabel("週", fontsize=12)
-ax4.text(0.01, 0.95, "KPI③: ヘビー化率（ヘビーユーザー / MAU）", transform=ax4.transAxes,
+ax4.text(0.01, 0.95, "KPI3: ヘビー化率（ヘビーユーザー / MAU）", transform=ax4.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#FF9800")
 ax4.legend(loc="center left", fontsize=8, framealpha=0.7)
 for idx in [0, -1]:
@@ -2550,28 +2550,14 @@ c14b_users_doc = [all_unique_users_by_week[w] for w in c14b_weeks]
 fig14b, ax14b = plt.subplots(figsize=(12, 6))
 _c14b_x = list(range(len(c14b_weeks)))
 
-# Stacked bars: D4+ doctor (green) + D0-D3 doctor (light green) + non-doctor delta (light blue)
-c14b_nondoc_d4 = [a - d for a, d in zip(c14b_d4_all, c14b_d4_doc)]
-c14b_nondoc_d03 = [a - d for a, d in zip(c14b_d03_all, c14b_d03_doc)]
-
-ax14b.bar(_c14b_x, c14b_d4_doc, width=0.7, label="D4+ 医師", color="#4CAF50", alpha=0.85)
-ax14b.bar(_c14b_x, c14b_d03_doc, width=0.7, bottom=c14b_d4_doc,
-          label="D0-D3 医師", color="#A5D6A7", alpha=0.7)
-_bot2 = [a + b for a, b in zip(c14b_d4_doc, c14b_d03_doc)]
-ax14b.bar(_c14b_x, c14b_nondoc_d4, width=0.7, bottom=_bot2,
-          label="D4+ 非医師", color="#64B5F6", alpha=0.7)
-_bot3 = [a + b for a, b in zip(_bot2, c14b_nondoc_d4)]
-ax14b.bar(_c14b_x, c14b_nondoc_d03, width=0.7, bottom=_bot3,
-          label="D0-D3 非医師", color="#BBDEFB", alpha=0.6)
-
+# Single bar: total searches (all users, all periods)
+ax14b.bar(_c14b_x, c14b_total_all, width=0.7, label="総検索回数", color="#4CAF50", alpha=0.85)
 ax14b.set_ylabel("検索回数", fontsize=11)
 
-# Right axis: unique users
+# Right axis: unique users (all)
 ax14b_r = ax14b.twinx()
 ax14b_r.plot(_c14b_x, c14b_users_all, marker="o", ms=5, lw=2, color="#1565C0",
-             label="ユニークユーザー数（全）")
-ax14b_r.plot(_c14b_x, c14b_users_doc, marker="s", ms=4, lw=2, color="#388E3C",
-             linestyle="--", label="ユニークユーザー数（医師）")
+             label="ユニークユーザー数")
 ax14b_r.set_ylabel("ユニークユーザー数", fontsize=11)
 
 # Annotate latest
@@ -2583,7 +2569,7 @@ if c14b_total_all:
                      textcoords="offset points", xytext=(8, 5), ha="left",
                      fontsize=9, color="#1565C0")
 
-ax14b.set_title("週次検索ボリューム（D0-D3含む全検索）", fontsize=14, fontweight="bold")
+ax14b.set_title("週次検索ボリューム（全検索）", fontsize=14, fontweight="bold")
 
 lines1b, labels1b = ax14b.get_legend_handles_labels()
 lines2b, labels2b = ax14b_r.get_legend_handles_labels()
@@ -2622,10 +2608,11 @@ _latest_cum_act = cum_act.get(common_weeks[-1], 0)
 _latest_act_rate = act_rate_vals_cw[-1] if act_rate_vals_cw else 0
 _latest_return_rate = return_rate_vals[-1] if return_rate_vals else 0
 _decomp_check = reg_vals[-1] * _latest_act_rate / 100 * _latest_return_rate / 100
-print(f"\n  --- KPI Decomposition ---")
+print(f"\n  --- KGI/KPI Decomposition (Heavy Users) ---")
+print(f"  KGI: Heavy Users = {s15_count.get(common_weeks[-1], 0)}")
 print(f"  KPI1: Registered Doctors = {reg_vals[-1]}")
-print(f"  KPI2: Activation Rate = {_latest_act_rate:.1f}% ({_latest_cum_act}/{reg_vals[-1]})")
-print(f"  KPI3: Weekly Continuation Rate = {_latest_return_rate:.1f}% ({wau_vals[-1]}/{_latest_cum_act})")
+print(f"  KPI2: MAU Rate = {mau_rate_vals[-1]:.1f}%")
+print(f"  KPI3: Heavy Rate = {s15_pct_mau.get(common_weeks[-1], 0)}%")
 print(f"  Check: {reg_vals[-1]} x {_latest_act_rate:.1f}% x {_latest_return_rate:.1f}% = {_decomp_check:.0f} (WAU={wau_vals[-1]})")
 
 # Recent 4 weeks
@@ -2780,7 +2767,7 @@ html = f'''<!DOCTYPE html>
   <h2 style="color:#1a237e;">用語定義</h2>
   <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
     <b>D4+</b>: 登録から4日以上経過した状態。初期探索期間（登録直後の試用）を除外し、真の利用意思を持つユーザーのみを計測対象とするためのフィルタ。<br>
-    <b>WAU</b>（Weekly Active Users）: D4+で当該週に1回以上検索した医師数。本ダッシュボードのKGI。<br>
+    <b>WAU</b>（Weekly Active Users）: D4+で当該週に1回以上検索した医師数。<br>
     <b>MAU</b>（Monthly Active Users）: 過去28日間にD4+検索を1回以上行った医師数。<br>
     <b>DAU</b>（Daily Active Users）: 当日にD4+検索を1回以上行った医師数。「平均DAU」は週内7日間の平均。<br>
     <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
@@ -2800,19 +2787,19 @@ html = f'''<!DOCTYPE html>
 <div class="summary">
   <div class="card" style="background:linear-gradient(135deg,#4A148C,#7B1FA2);border:none;">
     <div class="value" style="color:#fff;font-size:42px;">{s15_count.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}</div>
-    <div class="label" style="color:rgba(255,255,255,0.85);">KPI0: ヘビーユーザー数<br><span style="font-size:11px;color:rgba(255,255,255,0.6);">28日間10回以上検索 / MAU中 {s15_pct_mau.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}% / 平均 {s15_avg_searches.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}回 / {s15_avg_active_days.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}日</span></div>
+    <div class="label" style="color:rgba(255,255,255,0.85);">KGI: ヘビーユーザー数<br><span style="font-size:11px;color:rgba(255,255,255,0.6);">28日間10回以上検索 / MAU中 {s15_pct_mau.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}% / 平均 {s15_avg_searches.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}回 / {s15_avg_active_days.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}日</span></div>
   </div>
   <div class="card blue">
     <div class="value">{wau_vals[-1]}</div>
-    <div class="label">WAU / KGI（{disp_week_label}）<br><span style="font-size:11px;color:#aaa;">目標: {TARGET_WAU}</span></div>
+    <div class="label">WAU（{disp_week_label}）<br><span style="font-size:11px;color:#aaa;">目標: {TARGET_WAU}</span></div>
   </div>
   <div class="card green">
     <div class="value">{registered_total}</div>
-    <div class="label">KPI1: \u767b\u9332\u533b\u5e2b\u6570<br><span style="font-size:11px;color:#aaa;">目標: {TARGET_REG:,}</span></div>
+    <div class="label">KPI1: 登録医師数<br><span style="font-size:11px;color:#aaa;">目標: {TARGET_REG:,}</span></div>
   </div>
   <div class="card orange">
     <div class="value">{rate_vals[-1]:.1f}%</div>
-    <div class="label">KPI2: WAU\u7387 (WAU / D4+\u5230\u9054\u6e08\u767b\u9332)<br><span style="font-size:11px;color:#aaa;">目標: {TARGET_WAU_RATE}%</span></div>
+    <div class="label">WAU率 (WAU / D4+到達済登録)<br><span style="font-size:11px;color:#aaa;">目標: {TARGET_WAU_RATE}%</span></div>
   </div>
 </div>
 
@@ -2863,7 +2850,7 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>1. KGI/KPI 週次推移 — ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">上段: KGI = ヘビーユーザー数（28日間10回以上検索・医師）。2段目: KPI① = 登録医師数（緑）+ メール登録数（青）。3段目: KPI② = MAU率。4段目: KPI③ = ヘビー化率。点線 = 計画線<br>目標（6月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
+  <p class="def">上段: KGI = ヘビーユーザー数（28日間10回以上検索・医師）。2段目: KPI1 = 登録医師数（緑）+ メール登録数（青）。3段目: KPI2 = MAU率。4段目: KPI3 = ヘビー化率。点線 = 計画線<br>目標（6月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
   <img src="chart3_kpi_trends.png" alt="KGI/KPI Trends">
 </div>
 
@@ -2940,8 +2927,8 @@ html = f'''<!DOCTYPE html>
 </div>
 
 <div class="chart-section">
-  <h2>13. 週次検索ボリューム（D0-D3含む全検索）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全検索の総回数（D4+とD0-D3を分離、さらに医師/非医師で分離）。折れ線（右軸）: ユニークユーザー数。<br>D0-D3（登録直後の試用期間）の検索量を含めた全体像を把握する指標</p>
+  <h2>13. 週次検索ボリューム（全検索）</h2>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数。折れ線（右軸）: ユニークユーザー数。検索量の絶対量と利用者数の推移</p>
   <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume All">
 </div>
 

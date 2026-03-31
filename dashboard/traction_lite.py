@@ -1711,7 +1711,7 @@ s5_vals = [s5_ratio[w] for w in s5_weeks]
 ax.plot(s5_weeks, s5_vals, marker="o", ms=5, lw=2, color="#00BCD4")
 ax.axhline(y=60, color="gray", ls="--", alpha=0.5, label="60%（Sequoia基準）")
 ax.set_ylabel("WAU/MAU（%）")
-ax.set_title("11. WAU/MAU スティッキネス", fontsize=14, fontweight="bold")
+ax.set_title("11. WAU/MAU比率", fontsize=14, fontweight="bold")
 ax.legend(fontsize=9)
 if s5_vals:
     ax.annotate(f"{s5_vals[-1]:.1f}%", (s5_weeks[-1], s5_vals[-1]),
@@ -2856,8 +2856,8 @@ html = f'''<!DOCTYPE html>
 </div>
 
 <div class="chart-section">
-  <h2>11. WAU/MAU スティッキネス</h2>
-  <p class="def">【定義】分子=WAU / 分母=MAU（28日窓）。ユーザーがどれだけ頻繁に戻ってくるかを示す。<br>60%以上がSequoia基準で良好水準。数値が高いほど「習慣化」が進んでいる</p>
+  <h2>11. WAU/MAU比率</h2>
+  <p class="def">【定義】分子=WAU / 分母=MAU（28日窓）。ユーザーがどれだけ頻繁に戻ってくるかを示す。<br>60%以上が良好水準。数値が高いほど「習慣化」が進んでいる</p>
   <img src="chart5a_s5_stickiness.png" alt="S5">
 </div>
 
@@ -2895,12 +2895,6 @@ html = f'''<!DOCTYPE html>
   <h2>17. DAU率（平均DAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=平均DAU / 分母=累計登録医師数。日次ベースでの利用率</p>
   <img src="chart8d_dau_rate.png" alt="DAU Rate">
-</div>
-
-<div class="chart-section">
-  <h2>Reference: WAU\u7387\u306e\u5185\u90e8\u5206\u89e3 (\u30a2\u30af\u30c6\u30a3\u30d9\u30fc\u30b7\u30e7\u30f3\u7387 \u00d7 \u9031\u6b21\u7d99\u7d9a\u7387)</h2>
-  <p class="def">WAU\u7387 = \u30a2\u30af\u30c6\u30a3\u30d9\u30fc\u30b7\u30e7\u30f3\u7387\uff08\u521d\u56deD4+\u5229\u7528\u6e08\u307f / \u767b\u9332\u533b\u5e2b\uff09\u00d7 \u9031\u6b21\u7d99\u7d9a\u7387\uff08\u4eca\u9031\u306eWAU / \u30a2\u30af\u30c6\u30a3\u30d9\u30fc\u30c8\u6e08\u307f\u533b\u5e2b\uff09\u3002\u7d2f\u7a4d\u6307\u6a19\u306e\u305f\u3081\u6025\u5909\u3057\u306a\u3044\u3002\u30b3\u30db\u30fc\u30c8\u5225\u306e\u8a73\u7d30\u306f\u30ea\u30c6\u30f3\u30b7\u30e7\u30f3\u30ab\u30fc\u30d6\uff08Chart 3\uff09\u3067\u78ba\u8a8d</p>
-  <img src="chart9_kpi_decomposition.png" alt="Reference: WAU Rate Decomposition">
 </div>
 
 <div class="footer">Cubec トラクションダッシュボード | 生成日: {DATA_END.strftime("%Y-%m-%d")}</div>

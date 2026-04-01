@@ -457,7 +457,7 @@ fig, ax = plt.subplots(figsize=(14, 7))
 ax.stackplot(all_weeks, mille_matrix, labels=all_cohorts_mille, colors=colors, alpha=0.85)
 ax.set_xlabel("週", fontsize=12)
 ax.set_ylabel("WAU（人）", fontsize=12)
-ax.set_title("6. コホート別WAU推移 — 医師のみ（ミルフィーユチャート）", fontsize=14, fontweight="bold")
+ax.set_title("6. コホート別WAU推移 — 医師認証済み（ミルフィーユチャート）", fontsize=14, fontweight="bold")
 ax.legend(title="Registration Cohort", loc="upper left", fontsize=9, title_fontsize=10, ncol=2)
 
 # X-axis labels
@@ -512,7 +512,7 @@ fig1b, ax1b = plt.subplots(figsize=(14, 7))
 ax1b.stackplot(all_weeks_1b, mille_matrix_1b, labels=all_cohorts_mille_1b, colors=colors_1b, alpha=0.85)
 ax1b.set_xlabel("週", fontsize=12)
 ax1b.set_ylabel("WAU（人）", fontsize=12)
-ax1b.set_title("6b. コホート別WAU推移 — 全ユーザー（ミルフィーユチャート）", fontsize=14, fontweight="bold")
+ax1b.set_title("6b. コホート別WAU推移 — 全メール登録者（ミルフィーユチャート）", fontsize=14, fontweight="bold")
 ax1b.legend(title="Registration Cohort", loc="upper left", fontsize=9, title_fontsize=10, ncol=2)
 
 fd1b, ld1b = all_weeks_1b[0], all_weeks_1b[-1]
@@ -1494,7 +1494,7 @@ for cm in sorted(_act_month_cohorts.keys()):
     for off, tm, an, tn, avg, med in series:
         print(f"    M+{off} ({tm}): active={an}/{tn}, avg(active)={avg}, median={med}")
 
-# ── S15: Habitual Doctors (10+/28d) ──
+# ── S15: Habitual Doctors (10+/28d, D4+ only) ──
 print("\n-- S15: Habitual Doctors (10+ searches / 28d) --", flush=True)
 s15_count = {}
 s15_pct_mau = {}
@@ -1547,11 +1547,13 @@ for w in exp_chart_weeks[-4:]:
     cont_pct = s15_continuity_pct.get(w, 0)
     print(f"    {w.strftime('%Y-%m-%d')}: {s15_count.get(w,0)} ({s15_pct_mau.get(w,0)}% of MAU={s15_mau.get(w,0)}) avg={s15_avg_searches.get(w,0)}回 avg_days={s15_avg_active_days.get(w,0)}日 | 継続={cont} ({cont_pct}%)")
 
-# ── S15b: Habitual Users (all users, 10+/28d) ──
-print("\n-- S15b: Habitual Users - all users (10+ searches / 28d) --", flush=True)
+# ── S15b: Habitual Users (all users, D4+ only, 10+/28d) with doctor breakdown ──
+print("\n-- S15b: Habitual Users - all users, D4+ (10+ searches / 28d) --", flush=True)
 s15b_count = {}
 s15b_mau = {}
 s15b_avg_searches = {}
+s15b_doctor_count = {}
+s15b_nondoctor_count = {}
 
 for week in exp_weeks:
     w_end = week_end_date(week)
@@ -1561,15 +1563,23 @@ for week in exp_weeks:
         if days >= 4 and w28.date() <= sd.date() <= w_end.date():
             u28_all[uid] += 1
     mau_all = len(u28_all)
-    hab_all_counts = [v for v in u28_all.values() if v >= 10]
-    hab_all = len(hab_all_counts)
+    hab_all_uids = {uid for uid, v in u28_all.items() if v >= 10}
+    hab_all_counts = [u28_all[uid] for uid in hab_all_uids]
+    hab_all = len(hab_all_uids)
+    hab_doctor_uids = hab_all_uids & set(user_reg.keys())
+    hab_nondoctor_uids = hab_all_uids - set(user_reg.keys())
     s15b_count[week] = hab_all
     s15b_mau[week] = mau_all
     s15b_avg_searches[week] = round(sum(hab_all_counts) / hab_all, 1) if hab_all > 0 else 0
+    s15b_doctor_count[week] = len(hab_doctor_uids)
+    s15b_nondoctor_count[week] = len(hab_nondoctor_uids)
 
 print("  Recent 4 weeks:")
 for w in exp_chart_weeks[-4:]:
-    print(f"    {w.strftime('%Y-%m-%d')}: All={s15b_count.get(w,0)} (MAU_all={s15b_mau.get(w,0)}, avg={s15b_avg_searches.get(w,0)}), Doctors={s15_count.get(w,0)} (avg={s15_avg_searches.get(w,0)})")
+    _all = s15b_count.get(w, 0)
+    _doc = s15b_doctor_count.get(w, 0)
+    _nondoc = s15b_nondoctor_count.get(w, 0)
+    print(f"    {w.strftime('%Y-%m-%d')}: All={_all} (Doctor={_doc}, Non-doctor={_nondoc}) MAU_all={s15b_mau.get(w,0)}, avg={s15b_avg_searches.get(w,0)}")
 
 # ── S16: Post-Activation Monthly Retention (per-user rolling 30d windows) ──
 # Each user's timeline starts from their own activation date (first D4+ search).
@@ -1709,7 +1719,7 @@ fig, ax = plt.subplots(figsize=(10, 5))
 s5_weeks = [w for w in exp_chart_weeks if w in s5_ratio]
 s5_vals = [s5_ratio[w] for w in s5_weeks]
 ax.plot(s5_weeks, s5_vals, marker="o", ms=5, lw=2, color="#00BCD4")
-ax.axhline(y=60, color="gray", ls="--", alpha=0.5, label="60%（Sequoia基準）")
+# (60% reference line removed)
 ax.set_ylabel("WAU/MAU（%）")
 ax.set_title("11. WAU/MAU比率", fontsize=14, fontweight="bold")
 ax.legend(fontsize=9)
@@ -1897,13 +1907,23 @@ s15_days_vals = [s15_avg_active_days.get(w, 0) for w in s15_weeks]
 fig, (ax_top, ax_mid, ax_bot) = plt.subplots(3, 1, figsize=(10, 10), sharex=True,
                                               gridspec_kw={"height_ratios": [3, 2, 2]})
 
-# Top: 棒グラフ — ヘビーユーザー数
-ax_top.bar(_s15_x, s15_c_vals, width=0.7, color="#9C27B0", alpha=0.8)
+# Top: 棒グラフ — ヘビーユーザー数（医師=濃紫 + 非医師=薄紫を上乗せ）
+# Non-doctor heavy users from S15c (all users, D4+) on top as reference
+_s15_nondoc_vals = [s15b_nondoctor_count.get(w, 0) for w in s15_weeks]
+_s15_total_vals = [d + nd for d, nd in zip(s15_c_vals, _s15_nondoc_vals)]
+ax_top.bar(_s15_x, s15_c_vals, width=0.7, color="#9C27B0", alpha=0.85, label="医師（KGI）")
+ax_top.bar(_s15_x, _s15_nondoc_vals, width=0.7, bottom=s15_c_vals, color="#90CAF9", alpha=0.45, label="医師未登録（参考）")
 ax_top.set_ylabel("ヘビーユーザー数")
 ax_top.set_title("2. ヘビーユーザー詳細（人数・検索回数・アクティブ日数）", fontsize=14, fontweight="bold")
+ax_top.legend(loc="upper left", fontsize=8)
 if s15_c_vals:
-    for _xi, _v in zip(_s15_x, s15_c_vals):
-        ax_top.text(_xi, _v + 0.3, str(_v), ha="center", fontsize=9, color="#9C27B0", fontweight="bold")
+    for _xi, _v, _vnd, _vtotal in zip(_s15_x, s15_c_vals, _s15_nondoc_vals, _s15_total_vals):
+        # Doctor count (KGI) — bold
+        ax_top.text(_xi, _v + 0.3 if _vnd == 0 else _v / 2, str(_v), ha="center", fontsize=9, color="#9C27B0" if _vnd == 0 else "white", fontweight="bold")
+        # Non-doctor count on top (if > 0)
+        if _vnd > 0:
+            ax_top.text(_xi, _v + _vnd / 2, str(_vnd), ha="center", fontsize=8, color="#7B1FA2", alpha=0.7)
+            ax_top.text(_xi, _vtotal + 0.3, str(_vtotal), ha="center", fontsize=8, color="#42A5F5")
 
 # Middle: 折れ線 — 平均検索回数
 ax_mid.plot(_s15_x, s15_avg_vals, color="#FF9800", marker="o", linewidth=2)
@@ -1927,39 +1947,6 @@ ax_bot.set_xticklabels(_s15_xlabels, rotation=45, ha="right")
 fig.tight_layout()
 fig.savefig(OUTPUT_DIR / "chart11b_s15_habitual.png", dpi=150, bbox_inches="tight")
 print("[OK] Chart 11b -> output/chart11b_s15_habitual.png", flush=True)
-plt.close(fig)
-
-# ── Chart 11b2: S15b Habitual Users - all users (bar, stacked + avg line) ──
-fig, ax = plt.subplots(figsize=(10, 5))
-s15b_weeks = [w for w in exp_chart_weeks if w in s15b_count]
-s15b_c_vals = [s15b_count.get(w, 0) for w in s15b_weeks]
-s15_c_vals2 = [s15_count.get(w, 0) for w in s15b_weeks]
-_s15b_x = list(range(len(s15b_weeks)))
-ax.bar(_s15b_x, s15b_c_vals, width=0.7, color="#90CAF9", alpha=0.8, label="全ユーザー数")
-ax.bar(_s15b_x, s15_c_vals2, width=0.7, color="#9C27B0", alpha=0.8, label="医師のみ数")
-ax.set_ylabel("ヘビーユーザー数")
-ax.set_title("(参考) ヘビーユーザー — 全ユーザー vs 医師のみ", fontsize=13, fontweight="bold")
-if s15b_c_vals:
-    for _xi, _va, _vd in zip(_s15b_x, s15b_c_vals, s15_c_vals2):
-        ax.text(_xi, _va + 0.5, str(_va), ha="center", fontsize=9, color="#1976D2", fontweight="bold")
-ax2 = ax.twinx()
-s15b_avg_vals = [s15b_avg_searches.get(w, 0) for w in s15b_weeks]
-s15_avg_vals2 = [s15_avg_searches.get(w, 0) for w in s15b_weeks]
-ax2.plot(_s15b_x, s15b_avg_vals, color="#FF9800", marker="o", linewidth=2, label="平均検索回数(全)")
-ax2.plot(_s15b_x, s15_avg_vals2, color="#E91E63", marker="s", linewidth=2, linestyle="--", label="平均検索回数(医師)")
-for _xi, _va in zip(_s15b_x, s15b_avg_vals):
-    ax2.text(_xi, _va + 0.5, f"{_va:.1f}", ha="center", fontsize=8, color="#FF9800", fontweight="bold")
-ax2.set_ylabel("平均検索回数", color="#FF9800")
-ax2.tick_params(axis="y", labelcolor="#FF9800")
-lines1, labels1 = ax.get_legend_handles_labels()
-lines2, labels2 = ax2.get_legend_handles_labels()
-ax.legend(lines1 + lines2, labels1 + labels2, loc="upper left", fontsize=9)
-# X-axis: week-end date only (28-day window metric)
-ax.set_xticks(_s15b_x)
-ax.set_xticklabels([week_end_label(w) for w in s15b_weeks], rotation=45, ha="right")
-fig.tight_layout()
-fig.savefig(OUTPUT_DIR / "chart11b2_s15b_habitual_all.png", dpi=150, bbox_inches="tight")
-print("[OK] Chart 11b2 -> output/chart11b2_s15b_habitual_all.png", flush=True)
 plt.close(fig)
 
 # ══════════════════════════════════════════════
@@ -2642,7 +2629,7 @@ if exp_chart_weeks:
         print(f"{'S2: Continuing WAU share':<40} {_cpct:>9.1f}% {'of weekly WAU'}")
     print(f"{'S3: Dormancy Rate':<40} {s3_rate.get(lw, 0):>9.1f}% {'4-week window'}")
     print(f"{'S4: Query Depth':<40} {s4_depth.get(lw, 0):>9.1f}  {'queries/user/week'}")
-    print(f"{'S5: WAU/MAU Stickiness':<40} {s5_ratio.get(lw, 0):>9.1f}% {'benchmark 60%+'}")
+    print(f"{'S5: WAU/MAU Ratio':<40} {s5_ratio.get(lw, 0):>9.1f}%")
     print(f"{'S6: W4 Retention':<40} {'see chart':>10} {'by cohort'}")
     print(f"{'S7: Retention Heatmap':<40} {'see chart':>10} {''}")
     print(f"{'S8: Peak usage day':<40} {'see chart':>10} {''}")
@@ -2693,7 +2680,7 @@ if exp_chart_weeks:
     metrics = [
         ("4. アクティベーション率", f"{act_rate_ts.get(lw, 0):.1f}%", "分子=D4+を1回以上使った医師数 / 分母=累計登録医師数"),
         ("5. 継続WAU比率", f"{s2_cont_vals.get(lw,0) / max(s2_new_vals.get(lw,0)+s2_cont_vals.get(lw,0)+s2_react_vals.get(lw,0), 1) * 100:.1f}%", "分子=前週もアクティブだったWAU / 分母=当週WAU合計"),
-        ("6. WAU/MAUスティッキネス", f"{s5_ratio.get(lw, 0):.1f}%", "分子=WAU / 分母=MAU（28日窓）。60%以上が良好水準"),
+        ("6. WAU/MAU比率", f"{s5_ratio.get(lw, 0):.1f}%", "分子=WAU / 分母=MAU（28日窓）"),
         ("MAU", f"{mau_by_week.get(lw, 0)}", "過去28日間にD4+検索を1回以上行った医師数"),
         ("MAU率", f"{mau_rate_by_week.get(lw, 0):.1f}%", "分子=MAU / 分母=累計登録医師数"),
         ("平均DAU", f"{avg_dau_by_week.get(lw, 0):.1f}", "週内の日別D4+検索者数の平均"),
@@ -2820,14 +2807,14 @@ html = f'''<!DOCTYPE html>
 </div>
 
 <div class="chart-section">
-  <h2>6. コホート別WAU推移 — 医師のみ（ミルフィーユチャート）</h2>
-  <p class="def">登録月別に色分けした週間アクティブユーザー数の積み上げ面グラフ。<br>【定義】WAU = 当該週にD4+検索を1回以上行った医師数</p>
+  <h2>6. コホート別WAU推移 — 医師認証済み（ミルフィーユチャート）</h2>
+  <p class="def">登録月別に色分けした週間アクティブユーザー数の積み上げ面グラフ。<br>【定義】WAU = 当該週にD4+検索を1回以上行った医師認証済みユーザー数。<br>KGI（ヘビーユーザー）の母集団となる医師ユーザーの利用動向を可視化</p>
   <img src="chart1_millefeuille.png" alt="Millefeuille">
 </div>
 
 <div class="chart-section">
-  <h2>6b. コホート別WAU推移 — 全ユーザー（ミルフィーユチャート）</h2>
-  <p class="def">医師認証の有無を問わず全ユーザー対象。Chart 6との差分が未認証アクティブユーザー</p>
+  <h2>6b. コホート別WAU推移 — 全メール登録者（ミルフィーユチャート）</h2>
+  <p class="def">医師登録の有無を問わず、全メール登録者が対象。Chart 6との差分が医師未登録のアクティブユーザー。<br>ヘビーユーザーチャート(2.)の水色バー（医師未登録）の背景を把握するための参考</p>
   <img src="chart1b_millefeuille_all.png" alt="Millefeuille All">
 </div>
 
@@ -2857,7 +2844,7 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>11. WAU/MAU比率</h2>
-  <p class="def">【定義】分子=WAU / 分母=MAU（28日窓）。ユーザーがどれだけ頻繁に戻ってくるかを示す。<br>60%以上が良好水準。数値が高いほど「習慣化」が進んでいる</p>
+  <p class="def">【定義】分子=WAU / 分母=MAU（28日窓）。ユーザーがどれだけ頻繁に戻ってくるかを示す</p>
   <img src="chart5a_s5_stickiness.png" alt="S5">
 </div>
 

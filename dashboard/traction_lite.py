@@ -123,6 +123,12 @@ TARGET_HEAVY = 200
 TARGET_MAU_RATE = 20.0   # percent
 TARGET_HEAVY_RATE = 20.0  # percent (heavy / MAU)
 
+# Appendix: Pre-A minimum scenario (TARGET_HEAVY = 100)
+APP_TARGET_HEAVY = 100
+APP_TARGET_REG = 2500  # 100 / (20% × 20%)
+APP_TARGET_MAU_RATE = 20.0
+APP_TARGET_HEAVY_RATE = 20.0
+
 # Plan milestones from kpi-target-rationale.md (logistic curve model)
 # (date, reg, wau_rate%, wau)
 PLAN_MILESTONES = [
@@ -209,6 +215,17 @@ def week_range_label(monday):
 
 # Compute plan weekly now that week_monday is defined
 PLAN_WEEKS, PLAN_WAU, PLAN_REG, PLAN_RATE = interpolate_plan_weekly(PLAN_MILESTONES)
+
+# Appendix plan milestones: scale registration to APP_TARGET_REG (2500)
+_app_scale = APP_TARGET_REG / PLAN_MILESTONES[-1][1]  # 2500/5000 = 0.5
+APP_PLAN_MILESTONES = [
+    (PLAN_MILESTONES[0][0], PLAN_MILESTONES[0][1], PLAN_MILESTONES[0][2], PLAN_MILESTONES[0][3]),
+] + [
+    (d, int(PLAN_MILESTONES[0][1] + (r - PLAN_MILESTONES[0][1]) * _app_scale), wr,
+     int(PLAN_MILESTONES[0][3] + (w - PLAN_MILESTONES[0][3]) * _app_scale))
+    for d, r, wr, w in PLAN_MILESTONES[1:]
+]
+APP_PLAN_WEEKS, _, APP_PLAN_REG, _ = interpolate_plan_weekly(APP_PLAN_MILESTONES)
 PLAN_B_WEEKS, PLAN_B_WAU, PLAN_B_REG, PLAN_B_RATE = interpolate_plan_weekly(PLAN_B_MILESTONES)
 
 # ══════════════════════════════════════════════
@@ -1547,6 +1564,40 @@ for w in exp_chart_weeks[-4:]:
     cont_pct = s15_continuity_pct.get(w, 0)
     print(f"    {w.strftime('%Y-%m-%d')}: {s15_count.get(w,0)} ({s15_pct_mau.get(w,0)}% of MAU={s15_mau.get(w,0)}) avg={s15_avg_searches.get(w,0)}回 avg_days={s15_avg_active_days.get(w,0)}日 | 継続={cont} ({cont_pct}%)")
 
+# ── S17: 習慣化ユーザー (3/4週で1回以上, D4+) ──
+print("\n-- S17: Habitual Users (3/4 weeks active, D4+) --", flush=True)
+s17_count = {}
+s17_avg_days = {}
+s17_avg_searches = {}
+s17_user_sets = {}
+
+for week in exp_weeks:
+    w_end = week_end_date(week)
+    w28 = w_end - timedelta(days=27)
+    # Per-user: search count, active days, weekly activity
+    u_searches = defaultdict(int)
+    u_days = defaultdict(set)
+    u_weekly = defaultdict(lambda: defaultdict(int))
+    for uid, sd, days_since in activities:
+        if days_since >= 4 and w28.date() <= sd.date() <= w_end.date():
+            u_searches[uid] += 1
+            u_days[uid].add(sd.date())
+            u_weekly[uid][week_monday(sd)] += 1
+    # Filter: active in 3+ of the weeks within the 28-day window
+    hab_uids = set()
+    for uid in u_searches:
+        active_weeks = sum(1 for wm, cnt in u_weekly[uid].items() if cnt >= 1)
+        if active_weeks >= 3:
+            hab_uids.add(uid)
+    s17_count[week] = len(hab_uids)
+    s17_avg_days[week] = round(sum(len(u_days[uid]) for uid in hab_uids) / len(hab_uids), 1) if hab_uids else 0
+    s17_avg_searches[week] = round(sum(u_searches[uid] for uid in hab_uids) / len(hab_uids), 1) if hab_uids else 0
+    s17_user_sets[week] = hab_uids
+
+print("  Recent 4 weeks:")
+for w in exp_chart_weeks[-4:]:
+    print(f"    {w.strftime('%Y-%m-%d')}: {s17_count.get(w,0)}人 avg_days={s17_avg_days.get(w,0)} avg_searches={s17_avg_searches.get(w,0)}")
+
 # ── S15b: Habitual Users (all users, D4+ only, 10+/28d) with doctor breakdown ──
 print("\n-- S15b: Habitual Users - all users, D4+ (10+ searches / 28d) --", flush=True)
 s15b_count = {}
@@ -2088,6 +2139,139 @@ fig3.savefig(OUTPUT_DIR / "chart3_kpi_trends.png", dpi=150, bbox_inches="tight")
 print(f"[OK] Chart 3 -> output/chart3_kpi_trends.png", flush=True)
 plt.close(fig3)
 
+# ══════════════════════════════════════════════
+# Appendix Chart 1: KGI/KPI Weekly Trends (TARGET_HEAVY = 100)
+# ══════════════════════════════════════════════
+print("\n" + "=" * 50)
+print("Appendix Chart 1: KGI/KPI Weekly Trends (Target=100)")
+print("=" * 50, flush=True)
+
+# Compute appendix heavy plan line
+APP_HEAVY_PLAN_WEEKS = []
+APP_HEAVY_PLAN_VALS = []
+APP_HEAVY_PLAN_MAU_RATE = []
+APP_HEAVY_PLAN_HEAVY_RATE = []
+_app_hp_start_date = common_weeks[-1]
+_app_hp_end_date = week_monday(datetime(2026, 6, 28))
+_app_hp_total_days = (_app_hp_end_date - _app_hp_start_date).days
+_app_hp_w = _app_hp_start_date
+while _app_hp_w <= _app_hp_end_date:
+    if _app_hp_total_days > 0:
+        frac = (_app_hp_w - _app_hp_start_date).days / _app_hp_total_days
+    else:
+        frac = 1.0
+    frac = min(frac, 1.0)
+    _mr = _heavy_plan_start_mau_rate + frac * (APP_TARGET_MAU_RATE - _heavy_plan_start_mau_rate)
+    _hr = _heavy_plan_start_heavy_rate + frac * (APP_TARGET_HEAVY_RATE - _heavy_plan_start_heavy_rate)
+    _reg = None
+    for i in range(len(APP_PLAN_MILESTONES) - 1):
+        d0 = APP_PLAN_MILESTONES[i][0]
+        d1 = APP_PLAN_MILESTONES[i + 1][0]
+        if d0 <= _app_hp_w + timedelta(days=3) <= d1 + timedelta(days=7):
+            f2 = (_app_hp_w - d0).days / max((d1 - d0).days, 1)
+            _reg = APP_PLAN_MILESTONES[i][1] + f2 * (APP_PLAN_MILESTONES[i + 1][1] - APP_PLAN_MILESTONES[i][1])
+            break
+    if _reg is None:
+        _reg = APP_PLAN_MILESTONES[-1][1]
+    _heavy = _reg * (_mr / 100) * (_hr / 100)
+    APP_HEAVY_PLAN_WEEKS.append(_app_hp_w)
+    APP_HEAVY_PLAN_VALS.append(_heavy)
+    APP_HEAVY_PLAN_MAU_RATE.append(_mr)
+    APP_HEAVY_PLAN_HEAVY_RATE.append(_hr)
+    _app_hp_w += timedelta(days=7)
+
+fig_app1, axes_app1 = plt.subplots(5, 1, figsize=(14, 20), sharex=True)
+
+# 1段目: KGI: ヘビーユーザー数
+ax1 = axes_app1[0]
+ax1.plot(common_weeks, heavy_vals_cw, marker="o", markersize=4, linewidth=2, color="#7B1FA2", label="実績")
+ax1.plot(APP_HEAVY_PLAN_WEEKS, APP_HEAVY_PLAN_VALS, linestyle="--", linewidth=1.5, color="#7B1FA2", alpha=0.4, label="計画")
+ax1.scatter([APP_HEAVY_PLAN_WEEKS[-1]], [APP_HEAVY_PLAN_VALS[-1]], marker="*", s=120, color="#7B1FA2", alpha=0.6, zorder=5)
+ax1.annotate(f"目標: {APP_TARGET_HEAVY}", (APP_HEAVY_PLAN_WEEKS[-1], APP_HEAVY_PLAN_VALS[-1]),
+             textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#7B1FA2", fontweight="bold")
+ax1.set_ylabel("ヘビーユーザー数", fontsize=11)
+ax1.set_title("1. KGI/KPI 週次推移 — ヘビーユーザー分解（実績 vs 計画）", fontsize=14, fontweight="bold")
+ax1.text(0.01, 0.95, "KGI: ヘビーユーザー数（28日間10回以上検索・医師）", transform=ax1.transAxes,
+         fontsize=10, fontweight="bold", va="top", color="#7B1FA2")
+ax1.legend(loc="center left", fontsize=8, framealpha=0.7)
+for idx in [0, -1]:
+    if heavy_vals_cw[idx] > 0:
+        ax1.annotate(f"{heavy_vals_cw[idx]}", (common_weeks[idx], heavy_vals_cw[idx]),
+                     textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+ax1.set_xlim(fd3 - timedelta(days=3), ld3_extended + timedelta(days=7))
+
+# 2段目: KPI1: 登録医師数
+ax2 = axes_app1[1]
+ax2.plot(common_weeks, reg_vals, marker="o", markersize=4, linewidth=2, color="#4CAF50", label="実績")
+ax2.plot(APP_PLAN_WEEKS, APP_PLAN_REG, linestyle="--", linewidth=1.5, color="#4CAF50", alpha=0.4, label="計画")
+ax2.scatter([APP_PLAN_WEEKS[-1]], [APP_PLAN_REG[-1]], marker="*", s=120, color="#4CAF50", alpha=0.6, zorder=5)
+ax2.annotate(f"目標: {APP_TARGET_REG:,}", (APP_PLAN_WEEKS[-1], APP_PLAN_REG[-1]),
+             textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#4CAF50", fontweight="bold")
+ax2.set_ylabel("累計登録医師数", fontsize=11)
+ax2.text(0.01, 0.95, "KPI1: 登録医師数", transform=ax2.transAxes,
+         fontsize=10, fontweight="bold", va="top", color="#4CAF50")
+ax2.legend(loc="center left", fontsize=8, framealpha=0.7)
+for idx in [0, -1]:
+    ax2.annotate(f"{reg_vals[idx]}", (common_weeks[idx], reg_vals[idx]),
+                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+
+# 3段目: 参考: メール登録数
+_app_email_target = int(APP_TARGET_REG / LATEST_CONV_RATE) if LATEST_CONV_RATE > 0 else APP_TARGET_REG
+ax2e = axes_app1[2]
+ax2e.plot(common_weeks, email_reg_vals, marker="o", markersize=4, linewidth=2, color="#1976D2", label="実績")
+# Email plan for appendix: scale from doctor plan
+_app_email_plan_ms = email_plan_from_doctor_plan(APP_PLAN_MILESTONES, LATEST_CONV_RATE)
+_app_email_plan_w, _app_email_plan_r = interpolate_email_plan_weekly(_app_email_plan_ms)
+ax2e.plot(_app_email_plan_w, _app_email_plan_r, linestyle="--", linewidth=1.5, color="#1976D2", alpha=0.4, label=f"計画（確定転換率{LATEST_CONV_RATE*100:.0f}%）")
+ax2e.scatter([_app_email_plan_w[-1]], [_app_email_plan_r[-1]], marker="*", s=120, color="#1976D2", alpha=0.6, zorder=5)
+ax2e.annotate(f"必要数: {_app_email_target:,}", (_app_email_plan_w[-1], _app_email_plan_r[-1]),
+              textcoords="offset points", xytext=(-60, 10), ha="center", fontsize=9, color="#1976D2", fontweight="bold")
+ax2e.set_ylabel("累計メール登録数", fontsize=11)
+ax2e.text(0.01, 0.95, "参考: メール登録数", transform=ax2e.transAxes,
+          fontsize=10, fontweight="bold", va="top", color="#1976D2")
+ax2e.legend(loc="center left", fontsize=8, framealpha=0.7)
+for idx in [0, -1]:
+    ax2e.annotate(f"{email_reg_vals[idx]}", (common_weeks[idx], email_reg_vals[idx]),
+                  textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+
+# 4段目: KPI2: MAU率
+ax3a = axes_app1[3]
+ax3a.plot(common_weeks, mau_rate_vals_cw, marker="o", markersize=4, linewidth=2, color="#E91E63", label="実績")
+ax3a.plot(APP_HEAVY_PLAN_WEEKS, APP_HEAVY_PLAN_MAU_RATE, linestyle="--", linewidth=1.5, color="#E91E63", alpha=0.4, label="計画")
+ax3a.scatter([APP_HEAVY_PLAN_WEEKS[-1]], [APP_TARGET_MAU_RATE], marker="*", s=120, color="#E91E63", alpha=0.6, zorder=5)
+ax3a.annotate(f"目標: {APP_TARGET_MAU_RATE}%", (APP_HEAVY_PLAN_WEEKS[-1], APP_TARGET_MAU_RATE),
+              textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#E91E63", fontweight="bold")
+ax3a.set_ylabel("MAU率 (%)", fontsize=11)
+ax3a.text(0.01, 0.95, "KPI2: MAU率（MAU / 累計登録医師数）", transform=ax3a.transAxes,
+         fontsize=10, fontweight="bold", va="top", color="#E91E63")
+ax3a.legend(loc="center left", fontsize=8, framealpha=0.7)
+for idx in [0, -1]:
+    ax3a.annotate(f"{mau_rate_vals_cw[idx]:.1f}%", (common_weeks[idx], mau_rate_vals_cw[idx]),
+                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+
+# 5段目: KPI3: ヘビー化率
+ax4 = axes_app1[4]
+ax4.plot(common_weeks, heavy_rate_vals_cw, marker="o", markersize=4, linewidth=2, color="#FF9800", label="実績")
+ax4.plot(APP_HEAVY_PLAN_WEEKS, APP_HEAVY_PLAN_HEAVY_RATE, linestyle="--", linewidth=1.5, color="#FF9800", alpha=0.4, label="計画")
+ax4.scatter([APP_HEAVY_PLAN_WEEKS[-1]], [APP_TARGET_HEAVY_RATE], marker="*", s=120, color="#FF9800", alpha=0.6, zorder=5)
+ax4.annotate(f"目標: {APP_TARGET_HEAVY_RATE}%", (APP_HEAVY_PLAN_WEEKS[-1], APP_TARGET_HEAVY_RATE),
+             textcoords="offset points", xytext=(-50, 10), ha="center", fontsize=9, color="#FF9800", fontweight="bold")
+ax4.set_ylabel("ヘビー化率 (%)", fontsize=11)
+ax4.set_xlabel("週", fontsize=12)
+ax4.text(0.01, 0.95, "KPI3: ヘビー化率（ヘビーユーザー / MAU）", transform=ax4.transAxes,
+         fontsize=10, fontweight="bold", va="top", color="#FF9800")
+ax4.legend(loc="center left", fontsize=8, framealpha=0.7)
+for idx in [0, -1]:
+    ax4.annotate(f"{heavy_rate_vals_cw[idx]:.1f}%", (common_weeks[idx], heavy_rate_vals_cw[idx]),
+                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+
+ax4.set_xticks(ticks3)
+ax4.set_xticklabels(labels3, rotation=45, ha="right")
+plt.tight_layout()
+fig_app1.savefig(OUTPUT_DIR / "chart_appendix1_kpi_trends.png", dpi=150, bbox_inches="tight")
+print(f"[OK] Appendix Chart 1 -> output/chart_appendix1_kpi_trends.png", flush=True)
+plt.close(fig_app1)
+
 # ── Chart 12c: ヘビーユーザー / MAU 比率 推移 ──
 fig, ax = plt.subplots(figsize=(10, 5))
 _s15c_weeks = [w for w in exp_chart_weeks if w in s15_count]
@@ -2145,6 +2329,50 @@ ax_bot.set_xticklabels(_s15d_xlabels, rotation=45, ha="right")
 fig.tight_layout()
 fig.savefig(OUTPUT_DIR / "chart12d_heavy_continuity.png", dpi=150, bbox_inches="tight")
 print("[OK] Chart 12d -> output/chart12d_heavy_continuity.png", flush=True)
+plt.close(fig)
+
+# ── Chart 12e: 習慣化ユーザー (3/4週 1+) — 人数・利用日数・利用回数 ──
+fig, axes = plt.subplots(3, 1, figsize=(12, 12), sharex=True)
+_s17_weeks = [w for w in exp_chart_weeks if w in s17_count]
+_s17_x = list(range(len(_s17_weeks)))
+_s17_xlabels = [week_end_label(w) for w in _s17_weeks]
+_s17_counts = [s17_count.get(w, 0) for w in _s17_weeks]
+_s17_days = [s17_avg_days.get(w, 0) for w in _s17_weeks]
+_s17_searches = [s17_avg_searches.get(w, 0) for w in _s17_weeks]
+
+# Row 1: 人数
+ax = axes[0]
+ax.plot(_s17_x, _s17_counts, color="#4CAF50", marker="o", markersize=5, linewidth=2.5)
+ax.fill_between(_s17_x, _s17_counts, alpha=0.12, color="#4CAF50")
+for _xi, _v in zip(_s17_x, _s17_counts):
+    ax.text(_xi, _v + 0.5, str(_v), ha="center", fontsize=9, color="#4CAF50", fontweight="bold")
+ax.set_ylabel("人数", fontsize=12)
+ax.set_title("5. 習慣化ユーザー — 人数・利用深度の推移", fontsize=14, fontweight="bold")
+ax.set_ylim(bottom=0)
+
+# Row 2: 利用日数/人
+ax = axes[1]
+ax.plot(_s17_x, _s17_days, color="#2196F3", marker="o", markersize=5, linewidth=2.5)
+ax.fill_between(_s17_x, _s17_days, alpha=0.12, color="#2196F3")
+for _xi, _v in zip(_s17_x, _s17_days):
+    ax.text(_xi, _v + 0.2, f"{_v:.1f}", ha="center", fontsize=9, color="#2196F3", fontweight="bold")
+ax.set_ylabel("利用日数/人 (28日間)", fontsize=12)
+ax.set_ylim(bottom=0)
+
+# Row 3: 利用回数/人
+ax = axes[2]
+ax.plot(_s17_x, _s17_searches, color="#FF9800", marker="o", markersize=5, linewidth=2.5)
+ax.fill_between(_s17_x, _s17_searches, alpha=0.12, color="#FF9800")
+for _xi, _v in zip(_s17_x, _s17_searches):
+    ax.text(_xi, _v + 0.5, f"{_v:.1f}", ha="center", fontsize=9, color="#FF9800", fontweight="bold")
+ax.set_ylabel("利用回数/人 (28日間)", fontsize=12)
+ax.set_ylim(bottom=0)
+ax.set_xticks(_s17_x)
+ax.set_xticklabels(_s17_xlabels, rotation=45, ha="right")
+
+fig.tight_layout()
+fig.savefig(OUTPUT_DIR / "chart12e_habitual_user.png", dpi=150, bbox_inches="tight")
+print("[OK] Chart 12e -> output/chart12e_habitual_user.png", flush=True)
 plt.close(fig)
 
 # ── Chart 11c: S16b Post-Activation Monthly Retention (activation month cohort) ──
@@ -2801,87 +3029,108 @@ html = f'''<!DOCTYPE html>
 </div>
 
 <div class="chart-section">
-  <h2>5. 登録ファネル: メール登録 × 医師登録転換率（4週ローリング）</h2>
+  <h2>5. 習慣化ユーザー（人数・利用深度）</h2>
+  <p class="def">【定義】直近28日間のうち3週以上で1回以上検索した医師（D4+）。バースト型利用を除外し、週をまたいで継続的に使っているユーザーを測定する。<br>上段: 人数推移（灰色破線はヘビーユーザー参考値）。中段: 1人当たり平均アクティブ日数（28日中）。下段: 1人当たり平均検索回数（28日間）</p>
+  <img src="chart12e_habitual_user.png" alt="Habitual Users">
+</div>
+
+<div class="chart-section">
+  <h2>6. 登録ファネル: メール登録 × 医師登録転換率（4週ローリング）</h2>
   <p class="def">直近4週のメール登録数と医師登録数、およびその転換率。<br>【注意】直近コホートはまだ医師認証に至っていない可能性があるため、転換率は構造的に低めに出る。確定転換率は{MATURED_CONV_RATE*100:.0f}%（登録{MATURATION_WEEKS}週以上前のコホートで算出）。<br>【定義】メール登録 = メールアドレスでアカウント作成した全ユーザー。医師登録 = 医師免許確認を完了した登録者。転換率 = 医師登録数 / メール登録数</p>
   <img src="chart10_reference_metrics.png" alt="Registration Funnel">
 </div>
 
 <div class="chart-section">
-  <h2>6. コホート別WAU推移 — 医師認証済み（ミルフィーユチャート）</h2>
+  <h2>7. コホート別WAU推移 — 医師認証済み（ミルフィーユチャート）</h2>
   <p class="def">登録月別に色分けした週間アクティブユーザー数の積み上げ面グラフ。<br>【定義】WAU = 当該週にD4+検索を1回以上行った医師認証済みユーザー数。<br>KGI（ヘビーユーザー）の母集団となる医師ユーザーの利用動向を可視化</p>
   <img src="chart1_millefeuille.png" alt="Millefeuille">
 </div>
 
 <div class="chart-section">
-  <h2>6b. コホート別WAU推移 — 全メール登録者（ミルフィーユチャート）</h2>
+  <h2>7b. コホート別WAU推移 — 全メール登録者（ミルフィーユチャート）</h2>
   <p class="def">医師登録の有無を問わず、全メール登録者が対象。Chart 6との差分が医師未登録のアクティブユーザー。<br>ヘビーユーザーチャート(2.)の水色バー（医師未登録）の背景を把握するための参考</p>
   <img src="chart1b_millefeuille_all.png" alt="Millefeuille All">
 </div>
 
 <div class="chart-section">
-  <h2>7. WAU構成（新規 / 継続 / 復帰）</h2>
+  <h2>8. WAU構成（新規 / 継続 / 復帰）</h2>
   <p class="def">WAUの内訳を積み上げ棒グラフで表示。<br>【定義】新規=当週初めてD4+検索した医師。継続=前週もアクティブだった医師。復帰=2週以上ぶりに戻った医師。<br>継続比率が高いほど安定したエンゲージメントを示す</p>
   <img src="chart4b_s2_composition.png" alt="S2">
 </div>
 
 <div class="chart-section">
-  <h2>8. コホート別リテンションカーブ（登録月基準）</h2>
+  <h2>9. コホート別リテンションカーブ（登録月基準）</h2>
   <p class="def">各期間に1回以上検索した医師の割合。<br>【定義】分子=当該期間に検索した医師数 / 分母=コホート全登録医師数。<br>D0-D3=登録0〜3日、D4-D10=登録4〜10日、M1=登録11〜40日、M2=登録41〜70日（以降30日刻み）。コホート=登録月。期間が未完了のコホートはその期間を非表示</p>
   <img src="chart2_retention_curve.png" alt="Retention Curve">
 </div>
 
 <div class="chart-section">
-  <h2>9. コホート別リテンション ヒートマップ（登録月基準）</h2>
+  <h2>10. コホート別リテンション ヒートマップ（登録月基準）</h2>
   <p class="def">登録月コホート × リテンション期間のマトリクス。<br>【定義】各セルの値 = 当該期間に1回以上検索した医師数 / コホート全登録医師数（%）。<br>期間: D0-D3=登録0〜3日、D4-D10=4〜10日、M1=11〜40日（以降30日刻み）。コホート全員の期間が未完了の列は非表示</p>
   <img src="chart6_retention_heatmap.png" alt="Retention Heatmap">
 </div>
 
 <div class="chart-section">
-  <h2>10. アクティベーション後 月次リテンション</h2>
+  <h2>11. アクティベーション後 月次リテンション</h2>
   <p class="def">各ユーザーのD4+初検索日（=アクティベーション日）を起点とした30日ローリング窓でのリテンション。<br>【定義】M+0=アクティベーション日（100%）。M+1=アクティベーション後1〜30日目に1回以上検索した割合。M+2=31〜60日目。以降30日刻み。<br>分子=当該窓で検索した医師数 / 分母=コホート全員。コホート=アクティベーション月（初めてD4+検索した月）。コホート全員の期間が未完了の列は非表示</p>
   <img src="chart11c_s16_retention.png" alt="S16">
 </div>
 
 <div class="chart-section">
-  <h2>11. WAU/MAU比率</h2>
+  <h2>12. WAU/MAU比率</h2>
   <p class="def">【定義】分子=WAU / 分母=MAU（28日窓）。ユーザーがどれだけ頻繁に戻ってくるかを示す</p>
   <img src="chart5a_s5_stickiness.png" alt="S5">
 </div>
 
 <div class="chart-section">
-  <h2>12. DAU/MAU比率</h2>
+  <h2>13. DAU/MAU比率</h2>
   <p class="def">【定義】分子=平均DAU（週内の日別D4+検索者数の平均） / 分母=MAU（28日窓）。<br>ユーザーが月内で平均何割の日にアクティブかを示す。on-demand型プロダクトでは10〜20%が一般的</p>
   <img src="chart5b_s9_dau_mau.png" alt="S9">
 </div>
 
 <div class="chart-section">
-  <h2>13. 週次検索ボリューム（全検索）</h2>
+  <h2>14. 週次検索ボリューム（全検索）</h2>
   <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数。折れ線（右軸）: ユニークユーザー数。検索量の絶対量と利用者数の推移</p>
   <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume All">
 </div>
 
 <div class="chart-section">
-  <h2>14. MAU（28日窓・D4+）</h2>
+  <h2>15. MAU（28日窓・D4+）</h2>
   <p class="def">【定義】過去28日間にD4+検索を1回以上行った医師数。WAUより長い観察窓で利用者の裾野を捉える</p>
   <img src="chart8a_mau.png" alt="MAU">
 </div>
 
 <div class="chart-section">
-  <h2>15. MAU率（MAU / 累計登録医師数）</h2>
+  <h2>16. MAU率（MAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=MAU / 分母=累計登録医師数。月次で見た利用率</p>
   <img src="chart8b_mau_rate.png" alt="MAU Rate">
 </div>
 
 <div class="chart-section">
-  <h2>16. 平均DAU（日次アクティブ医師数・D4+）</h2>
+  <h2>17. 平均DAU（日次アクティブ医師数・D4+）</h2>
   <p class="def">【定義】当該週の各日にD4+検索を行った医師数の7日間平均。日次の利用規模を示す</p>
   <img src="chart8c_avg_dau.png" alt="Avg DAU">
 </div>
 
 <div class="chart-section">
-  <h2>17. DAU率（平均DAU / 累計登録医師数）</h2>
+  <h2>18. DAU率（平均DAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=平均DAU / 分母=累計登録医師数。日次ベースでの利用率</p>
   <img src="chart8d_dau_rate.png" alt="DAU Rate">
+</div>
+
+<hr style="margin:40px 0;border:none;border-top:3px solid #1a237e;">
+<h1 style="color:#1a237e;">Appendix</h1>
+
+<div class="kpi-banner" style="background: linear-gradient(135deg, #4a148c, #6a1b9a);">
+  <div class="formula">KGI: ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
+  <div class="numbers"><span class="kgi-val">{s15_count.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}</span> = {reg_vals[-1]} × {mau_rate_vals[-1]:.1f}% × {s15_pct_mau.get(exp_chart_weeks[-1] if exp_chart_weeks else common_weeks[-1], 0)}%</div>
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（6月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
+</div>
+
+<div class="chart-section">
+  <h2>1. KGI/KPI 週次推移 — ヘビーユーザー分解（実績 vs 計画）</h2>
+  <p class="def">Chart 1と同一構造。目標をヘビー{APP_TARGET_HEAVY}人に設定。<br>目標（6月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
+  <img src="chart_appendix1_kpi_trends.png" alt="KGI/KPI Trends (Target 100)">
 </div>
 
 <div class="footer">Cubec トラクションダッシュボード | 生成日: {DATA_END.strftime("%Y-%m-%d")}</div>

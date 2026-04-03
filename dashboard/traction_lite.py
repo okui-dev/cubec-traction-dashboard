@@ -3143,6 +3143,199 @@ with open(OUTPUT_DIR / "dashboard.html", "w", encoding="utf-8") as f:
     f.write(html)
 print("[OK] dashboard.html -> output/dashboard.html", flush=True)
 
+# ══════════════════════════════════════════════
+# Generate dashboard_overview.html (investor-facing)
+# Same charts but: #1 = App1 (ヘビー100人目標), KPI banner = App targets, no Appendix
+# ══════════════════════════════════════════════
+print("\nGenerating dashboard_overview.html...", flush=True)
+
+html_overview = f'''<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Traction Dashboard — {DATA_END.strftime("%Y-%m-%d")}</title>
+<style>
+  body {{ font-family: 'Segoe UI', sans-serif; background: #f5f5f5; margin: 0; padding: 20px; max-width: 1100px; margin: 0 auto; }}
+  h1 {{ text-align: center; color: #333; margin-bottom: 5px; }}
+  .subtitle {{ text-align: center; color: #888; font-size: 14px; margin-bottom: 30px; }}
+  .summary {{ display: flex; justify-content: center; gap: 30px; margin-bottom: 30px; flex-wrap: wrap; }}
+  .card {{ background: #fff; border-radius: 10px; padding: 20px 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; min-width: 160px; }}
+  .card .value {{ font-size: 36px; font-weight: bold; }}
+  .card .label {{ font-size: 13px; color: #888; margin-top: 4px; }}
+  .card.blue .value {{ color: #2196F3; }}
+  .card.green .value {{ color: #4CAF50; }}
+  .card.orange .value {{ color: #FF9800; }}
+  .card.purple .value {{ color: #9C27B0; }}
+  .card.pink .value {{ color: #E91E63; }}
+  .card.cyan .value {{ color: #00BCD4; }}
+  .card.red .value {{ color: #FF5722; }}
+  .chart-section {{ background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }}
+  .chart-section h2 {{ margin: 0 0 4px 0; font-size: 16px; color: #555; }}
+  .chart-section img {{ width: 100%; max-width: 960px; display: block; margin: 0 auto; }}
+  .def {{ font-size: 11px; color: #999; font-weight: normal; line-height: 1.4; }}
+  .chart-section .def {{ margin: 0 0 12px 0; }}
+  table {{ margin: 0 auto; border-collapse: collapse; font-size: 14px; }}
+  th, td {{ padding: 6px 14px; border-bottom: 1px solid #eee; text-align: right; }}
+  th {{ color: #888; font-weight: normal; }}
+  td:first-child, th:first-child {{ text-align: left; }}
+  td.def {{ text-align: left; font-size: 11px; color: #999; }}
+  .kpi-banner {{ background: linear-gradient(135deg, #4a148c, #6a1b9a); color: #fff; border-radius: 12px; padding: 20px 30px; margin-bottom: 24px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }}
+  .kpi-banner .formula {{ font-size: 15px; opacity: 0.85; margin-bottom: 8px; }}
+  .kpi-banner .numbers {{ font-size: 22px; font-weight: bold; letter-spacing: 1px; }}
+  .kpi-banner .numbers .kgi-val {{ font-size: 28px; color: #90CAF9; }}
+  .footer {{ text-align: center; color: #bbb; font-size: 12px; margin-top: 30px; }}
+</style>
+</head>
+<body>
+
+<h1>Cubec トラクションダッシュボード</h1>
+<p class="subtitle">データ最終日: {DATA_END.strftime("%Y-%m-%d")} | 最終完全週: {disp_week_label}</p>
+
+<div class="chart-section" style="background:#f8f9ff;border-left:4px solid #1a237e;margin-bottom:24px;">
+  <h2 style="color:#1a237e;">用語定義</h2>
+  <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
+    <b>D4+</b>: 登録から4日以上経過した状態。初期探索期間（登録直後の試用）を除外し、真の利用意思を持つユーザーのみを計測対象とするためのフィルタ。<br>
+    <b>WAU</b>（Weekly Active Users）: D4+で当該週に1回以上検索した医師数。<br>
+    <b>MAU</b>（Monthly Active Users）: 過去28日間にD4+検索を1回以上行った医師数。<br>
+    <b>DAU</b>（Daily Active Users）: 当日にD4+検索を1回以上行った医師数。「平均DAU」は週内7日間の平均。<br>
+    <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
+    <b>アクティベーション</b>: 医師がD4+で初めて検索を行うこと。アクティベーション率 = 累計アクティベート済み医師数 / 累計登録医師数。<br>
+    <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
+    <b>リテンション</b>: ある期間に再びアクティブだったユーザーの割合。分母はコホート全員。<br>
+    <b>ヘビーユーザー</b>: 28日間に10回以上検索した医師。習慣的利用の指標。<br>
+  </p>
+</div>
+
+<div class="kpi-banner">
+  <div class="formula">KGI: ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
+  <div class="numbers"><span class="kgi-val">{s15_count.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}</span> = {reg_vals[-1]} × {mau_rate_vals[-1]:.1f}% × {s15_pct_mau.get(exp_chart_weeks[-1] if exp_chart_weeks else common_weeks[-1], 0)}%</div>
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（6月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
+</div>
+
+<div class="chart-section">
+  <h2>1. KGI/KPI 週次推移 — ヘビーユーザー分解（実績 vs 計画）</h2>
+  <p class="def">1段目: KGI = ヘビーユーザー数。2段目: KPI1 = 登録医師数。3段目: メール登録数（参考）。4段目: KPI2 = MAU率。5段目: KPI3 = ヘビー化率。点線 = 計画線<br>目標（6月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
+  <img src="chart_appendix1_kpi_trends.png" alt="KGI/KPI Trends">
+</div>
+
+<div class="chart-section">
+  <h2>2. ヘビーユーザー詳細（人数・検索回数・アクティブ日数）</h2>
+  <p class="def">【定義】上段: 過去28日間にD4+検索を10回以上行った医師数。中段: 同ユーザーの1人当たり平均検索回数。下段: 同ユーザーの1人当たり平均アクティブ日数（28日中何日使ったか）</p>
+  <img src="chart11b_s15_habitual.png" alt="S15">
+</div>
+
+<div class="chart-section">
+  <h2>3. ヘビーユーザー継続分析</h2>
+  <p class="def">【定義】上段: 今週のヘビーユーザーのうち、前週もヘビーだった人（継続）と今週新たにヘビーになった人（新規）の内訳。<br>下段: リテンション率＝前週もヘビーだった人 / <b>前週のヘビーユーザー総数</b>。前週のヘビーユーザーが翌週も残る割合を測る</p>
+  <img src="chart12d_heavy_continuity.png" alt="Heavy User Continuity">
+</div>
+
+<div class="chart-section">
+  <h2>4. ヘビーユーザー / MAU 比率</h2>
+  <p class="def">【定義】MAU（28日間D4+アクティブ医師）のうちヘビーユーザー（10回以上検索）が占める割合。<br>MAUの「質」を測る指標。MAU減少局面でも比率上昇なら、コアユーザーの深化が進んでいることを示す</p>
+  <img src="chart12c_heavy_mau_ratio.png" alt="Heavy/MAU Ratio">
+</div>
+
+<div class="chart-section">
+  <h2>5. 習慣化ユーザー（人数・利用深度）</h2>
+  <p class="def">【定義】直近28日間のうち3週以上で1回以上検索した医師（D4+）。バースト型利用を除外し、週をまたいで継続的に使っているユーザーを測定する。<br>上段: 人数推移（灰色破線はヘビーユーザー参考値）。中段: 1人当たり平均アクティブ日数（28日中）。下段: 1人当たり平均検索回数（28日間）</p>
+  <img src="chart12e_habitual_user.png" alt="Habitual Users">
+</div>
+
+<div class="chart-section">
+  <h2>6. 登録ファネル: メール登録 × 医師登録転換率（4週ローリング）</h2>
+  <p class="def">直近4週のメール登録数と医師登録数、およびその転換率。<br>【注意】直近コホートはまだ医師認証に至っていない可能性があるため、転換率は構造的に低めに出る。確定転換率は{MATURED_CONV_RATE*100:.0f}%（登録{MATURATION_WEEKS}週以上前のコホートで算出）。<br>【定義】メール登録 = メールアドレスでアカウント作成した全ユーザー。医師登録 = 医師免許確認を完了した登録者。転換率 = 医師登録数 / メール登録数</p>
+  <img src="chart10_reference_metrics.png" alt="Registration Funnel">
+</div>
+
+<div class="chart-section">
+  <h2>7. コホート別WAU推移 — 医師認証済み（ミルフィーユチャート）</h2>
+  <p class="def">登録月別に色分けした週間アクティブユーザー数の積み上げ面グラフ。<br>【定義】WAU = 当該週にD4+検索を1回以上行った医師認証済みユーザー数。<br>KGI（ヘビーユーザー）の母集団となる医師ユーザーの利用動向を可視化</p>
+  <img src="chart1_millefeuille.png" alt="Millefeuille">
+</div>
+
+<div class="chart-section">
+  <h2>7b. コホート別WAU推移 — 全メール登録者（ミルフィーユチャート）</h2>
+  <p class="def">医師登録の有無を問わず、全メール登録者が対象。Chart 6との差分が医師未登録のアクティブユーザー。<br>ヘビーユーザーチャート(2.)の水色バー（医師未登録）の背景を把握するための参考</p>
+  <img src="chart1b_millefeuille_all.png" alt="Millefeuille All">
+</div>
+
+<div class="chart-section">
+  <h2>8. WAU構成（新規 / 継続 / 復帰）</h2>
+  <p class="def">WAUの内訳を積み上げ棒グラフで表示。<br>【定義】新規=当週初めてD4+検索した医師。継続=前週もアクティブだった医師。復帰=2週以上ぶりに戻った医師。<br>継続比率が高いほど安定したエンゲージメントを示す</p>
+  <img src="chart4b_s2_composition.png" alt="S2">
+</div>
+
+<div class="chart-section">
+  <h2>9. コホート別リテンションカーブ（登録月基準）</h2>
+  <p class="def">各期間に1回以上検索した医師の割合。<br>【定義】分子=当該期間に検索した医師数 / 分母=コホート全登録医師数。<br>D0-D3=登録0〜3日、D4-D10=登録4〜10日、M1=登録11〜40日、M2=登録41〜70日（以降30日刻み）。コホート=登録月。期間が未完了のコホートはその期間を非表示</p>
+  <img src="chart2_retention_curve.png" alt="Retention Curve">
+</div>
+
+<div class="chart-section">
+  <h2>10. コホート別リテンション ヒートマップ（登録月基準）</h2>
+  <p class="def">登録月コホート × リテンション期間のマトリクス。<br>【定義】各セルの値 = 当該期間に1回以上検索した医師数 / コホート全登録医師数（%）。<br>期間: D0-D3=登録0〜3日、D4-D10=4〜10日、M1=11〜40日（以降30日刻み）。コホート全員の期間が未完了の列は非表示</p>
+  <img src="chart6_retention_heatmap.png" alt="Retention Heatmap">
+</div>
+
+<div class="chart-section">
+  <h2>11. アクティベーション後 月次リテンション</h2>
+  <p class="def">各ユーザーのD4+初検索日（=アクティベーション日）を起点とした30日ローリング窓でのリテンション。<br>【定義】M+0=アクティベーション日（100%）。M+1=アクティベーション後1〜30日目に1回以上検索した割合。M+2=31〜60日目。以降30日刻み。<br>分子=当該窓で検索した医師数 / 分母=コホート全員。コホート=アクティベーション月（初めてD4+検索した月）。コホート全員の期間が未完了の列は非表示</p>
+  <img src="chart11c_s16_retention.png" alt="S16">
+</div>
+
+<div class="chart-section">
+  <h2>12. WAU/MAU比率</h2>
+  <p class="def">【定義】分子=WAU / 分母=MAU（28日窓）。ユーザーがどれだけ頻繁に戻ってくるかを示す</p>
+  <img src="chart5a_s5_stickiness.png" alt="S5">
+</div>
+
+<div class="chart-section">
+  <h2>13. DAU/MAU比率</h2>
+  <p class="def">【定義】分子=平均DAU（週内の日別D4+検索者数の平均） / 分母=MAU（28日窓）。<br>ユーザーが月内で平均何割の日にアクティブかを示す。on-demand型プロダクトでは10〜20%が一般的</p>
+  <img src="chart5b_s9_dau_mau.png" alt="S9">
+</div>
+
+<div class="chart-section">
+  <h2>14. 週次検索ボリューム（全検索）</h2>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数。折れ線（右軸）: ユニークユーザー数。検索量の絶対量と利用者数の推移</p>
+  <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume All">
+</div>
+
+<div class="chart-section">
+  <h2>15. MAU（28日窓・D4+）</h2>
+  <p class="def">【定義】過去28日間にD4+検索を1回以上行った医師数。WAUより長い観察窓で利用者の裾野を捉える</p>
+  <img src="chart8a_mau.png" alt="MAU">
+</div>
+
+<div class="chart-section">
+  <h2>16. MAU率（MAU / 累計登録医師数）</h2>
+  <p class="def">【定義】分子=MAU / 分母=累計登録医師数。月次で見た利用率</p>
+  <img src="chart8b_mau_rate.png" alt="MAU Rate">
+</div>
+
+<div class="chart-section">
+  <h2>17. 平均DAU（日次アクティブ医師数・D4+）</h2>
+  <p class="def">【定義】当該週の各日にD4+検索を行った医師数の7日間平均。日次の利用規模を示す</p>
+  <img src="chart8c_avg_dau.png" alt="Avg DAU">
+</div>
+
+<div class="chart-section">
+  <h2>18. DAU率（平均DAU / 累計登録医師数）</h2>
+  <p class="def">【定義】分子=平均DAU / 分母=累計登録医師数。日次ベースでの利用率</p>
+  <img src="chart8d_dau_rate.png" alt="DAU Rate">
+</div>
+
+<div class="footer">Cubec トラクションダッシュボード | 生成日: {DATA_END.strftime("%Y-%m-%d")}</div>
+
+</body>
+</html>
+'''
+
+with open(OUTPUT_DIR / "dashboard_overview.html", "w", encoding="utf-8") as f:
+    f.write(html_overview)
+print("[OK] dashboard_overview.html -> output/dashboard_overview.html", flush=True)
+
 print(f"\n  Output:")
 print(f"    chart1_millefeuille.png")
 print(f"    chart2_retention_curve.png")
@@ -3158,4 +3351,5 @@ print(f"    chart9_kpi_decomposition.png")
 print(f"    chart10_reference_metrics.png")
 print(f"    chart11_exploration.png")
 print(f"    dashboard.html")
+print(f"    dashboard_overview.html")
 print("\nDone!", flush=True)

@@ -3129,8 +3129,8 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>1. KGI/KPI 週次推移 — ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">Chart 1と同一構造。目標をヘビー{APP_TARGET_HEAVY}人に設定。<br>目標（6月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
-  <img src="chart_appendix1_kpi_trends.png" alt="KGI/KPI Trends (Target 100)">
+  <p class="def">1段目: KGI = ヘビーユーザー数。2段目: KPI1 = 登録医師数。3段目: メール登録数（参考）。4段目: KPI2 = MAU率。5段目: KPI3 = ヘビー化率。点線 = 計画線<br>目標（6月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
+  <img src="chart_appendix1_kpi_trends.png" alt="KGI/KPI Trends">
 </div>
 
 <div class="footer">Cubec トラクションダッシュボード | 生成日: {DATA_END.strftime("%Y-%m-%d")}</div>

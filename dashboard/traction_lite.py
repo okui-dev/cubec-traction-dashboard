@@ -1853,7 +1853,7 @@ im = ax6.imshow(hm_matrix, cmap="YlOrRd_r", aspect="auto", vmin=0, vmax=100)
 ax6.set_xticks(range(len(hm_col_labels)))
 ax6.set_xticklabels(hm_col_labels)
 ax6.set_yticks(range(len(hm_labels)))
-ax6.set_yticklabels(hm_labels)
+ax6.set_yticklabels([f"{l} (n={ret_sizes[l]})" for l in hm_labels])
 for i in range(len(hm_labels)):
     for j in range(len(hm_col_labels)):
         v = hm_matrix[i, j]

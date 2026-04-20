@@ -151,11 +151,12 @@ APP_SEARCH_PLAN_MILESTONES = [
 ]
 APP_TARGET_WEEKLY_SEARCH = 1555
 
-# ── Heavy User plan milestones (FIXED — do not recalculate from actuals) ──
+# ── Heavy User plan milestones (FIXED — 2026-04-20 CEO確定・今後変更禁止) ──
 # (date, heavy_count, mau_rate%, heavy_rate%)
 # 3/1 starting point = week-of-2026-03-02 actual (Heavy=22, MAU率=18.2%, Heavy化率=18.4%)
 # heavy_count = reg_plan × mau_rate × heavy_rate (rates linear 18.2→20% / 18.4→20%)
 # Main: TARGET_HEAVY=200, end rates 20%/20%
+# ⚠️ これらの milestones は CEO確定値。実績やデータ更新で再計算しないこと。
 HEAVY_PLAN_MILESTONES = [
     (datetime(2026, 3, 1),   22,  18.2, 18.4),  #  654 × 18.2% × 18.4%
     (datetime(2026, 3, 31),  50,  18.65, 18.80),  # 1437 × 18.65% × 18.80%

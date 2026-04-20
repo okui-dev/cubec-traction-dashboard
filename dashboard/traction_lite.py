@@ -151,6 +151,25 @@ APP_SEARCH_PLAN_MILESTONES = [
 ]
 APP_TARGET_WEEKLY_SEARCH = 1555
 
+# ── Heavy User plan milestones (FIXED — do not recalculate from actuals) ──
+# (date, heavy_count, mau_rate%, heavy_rate%)
+# Main: TARGET_HEAVY=200, end rates 20%/20% — logistic curve matching registration plan
+HEAVY_PLAN_MILESTONES = [
+    (datetime(2026, 3, 1),   15,  15.0, 15.0),  # 654 × 15% × 15%
+    (datetime(2026, 3, 31),  42,  17.0, 17.0),  # 1437 × 17% × 17%
+    (datetime(2026, 4, 30),  97,  18.0, 18.0),  # 2996 × 18% × 18%
+    (datetime(2026, 5, 31), 152,  19.0, 19.0),  # 4217 × 19% × 19%
+    (datetime(2026, 6, 28), 200,  20.0, 20.0),  # 5000 × 20% × 20%
+]
+# Appendix: Pre-A minimum scenario (APP_TARGET_HEAVY=100) — main halved
+APP_HEAVY_PLAN_MILESTONES = [
+    (datetime(2026, 3, 1),    7,  15.0, 15.0),
+    (datetime(2026, 3, 31),  21,  17.0, 17.0),
+    (datetime(2026, 4, 30),  49,  18.0, 18.0),
+    (datetime(2026, 5, 31),  76,  19.0, 19.0),
+    (datetime(2026, 6, 28), 100,  20.0, 20.0),
+]
+
 # Plan milestones from kpi-target-rationale.md (logistic curve model)
 # (date, reg, wau_rate%, wau)
 PLAN_MILESTONES = [
@@ -271,6 +290,29 @@ def interpolate_search_plan(milestones):
 
 SEARCH_PLAN_WEEKS, SEARCH_PLAN_VALS = interpolate_search_plan(SEARCH_PLAN_MILESTONES)
 APP_SEARCH_PLAN_WEEKS, APP_SEARCH_PLAN_VALS = interpolate_search_plan(APP_SEARCH_PLAN_MILESTONES)
+
+def interpolate_heavy_plan(milestones):
+    """Interpolate heavy user plan milestones (date, heavy_count, mau_rate%, heavy_rate%) to weekly points."""
+    weeks, heavy_vals, mau_rates, heavy_rates = [], [], [], []
+    first_mon = week_monday(milestones[0][0])
+    last_mon = week_monday(milestones[-1][0])
+    ms_days = [(m[0] - milestones[0][0]).days for m in milestones]
+    w = first_mon
+    while w <= last_mon + timedelta(days=6):
+        d = (w - milestones[0][0]).days
+        for i in range(len(ms_days) - 1):
+            if ms_days[i] <= d <= ms_days[i + 1]:
+                frac = (d - ms_days[i]) / (ms_days[i + 1] - ms_days[i]) if ms_days[i + 1] != ms_days[i] else 0
+                weeks.append(w)
+                heavy_vals.append(milestones[i][1] + frac * (milestones[i + 1][1] - milestones[i][1]))
+                mau_rates.append(milestones[i][2] + frac * (milestones[i + 1][2] - milestones[i][2]))
+                heavy_rates.append(milestones[i][3] + frac * (milestones[i + 1][3] - milestones[i][3]))
+                break
+        w += timedelta(days=7)
+    return weeks, heavy_vals, mau_rates, heavy_rates
+
+HEAVY_PLAN_WEEKS, HEAVY_PLAN_VALS, HEAVY_PLAN_MAU_RATE, HEAVY_PLAN_HEAVY_RATE = interpolate_heavy_plan(HEAVY_PLAN_MILESTONES)
+APP_HEAVY_PLAN_WEEKS, APP_HEAVY_PLAN_VALS, APP_HEAVY_PLAN_MAU_RATE, APP_HEAVY_PLAN_HEAVY_RATE = interpolate_heavy_plan(APP_HEAVY_PLAN_MILESTONES)
 
 # ══════════════════════════════════════════════
 # Load data
@@ -2055,45 +2097,8 @@ heavy_vals_cw = [s15_count.get(w, 0) for w in common_weeks]
 mau_rate_vals_cw = [mau_rate_by_week.get(w, 0) for w in common_weeks]
 heavy_rate_vals_cw = [s15_pct_mau.get(w, 0) for w in common_weeks]
 
-# Heavy User plan line: interpolate from current to target
-# Use registration plan milestones × target MAU率 × target ヘビー化率
-_heavy_plan_start = heavy_vals_cw[-1] if heavy_vals_cw else 0
-_heavy_plan_start_mau_rate = mau_rate_vals_cw[-1] if mau_rate_vals_cw else 15.0
-_heavy_plan_start_heavy_rate = heavy_rate_vals_cw[-1] if heavy_rate_vals_cw else 19.0
-HEAVY_PLAN_WEEKS = []
-HEAVY_PLAN_VALS = []
-HEAVY_PLAN_MAU_RATE = []
-HEAVY_PLAN_HEAVY_RATE = []
-_hp_start_date = common_weeks[-1]
-_hp_end_date = week_monday(datetime(2026, 6, 28))
-_hp_total_days = (_hp_end_date - _hp_start_date).days
-_hp_w = _hp_start_date
-while _hp_w <= _hp_end_date:
-    if _hp_total_days > 0:
-        frac = (_hp_w - _hp_start_date).days / _hp_total_days
-    else:
-        frac = 1.0
-    frac = min(frac, 1.0)
-    # Interpolate MAU率 and ヘビー化率 linearly
-    _mr = _heavy_plan_start_mau_rate + frac * (TARGET_MAU_RATE - _heavy_plan_start_mau_rate)
-    _hr = _heavy_plan_start_heavy_rate + frac * (TARGET_HEAVY_RATE - _heavy_plan_start_heavy_rate)
-    # Registration: use existing plan interpolation
-    _reg = None
-    for i in range(len(PLAN_MILESTONES) - 1):
-        d0 = PLAN_MILESTONES[i][0]
-        d1 = PLAN_MILESTONES[i + 1][0]
-        if d0 <= _hp_w + timedelta(days=3) <= d1 + timedelta(days=7):
-            f2 = (_hp_w - d0).days / max((d1 - d0).days, 1)
-            _reg = PLAN_MILESTONES[i][1] + f2 * (PLAN_MILESTONES[i + 1][1] - PLAN_MILESTONES[i][1])
-            break
-    if _reg is None:
-        _reg = PLAN_MILESTONES[-1][1]
-    _heavy = _reg * (_mr / 100) * (_hr / 100)
-    HEAVY_PLAN_WEEKS.append(_hp_w)
-    HEAVY_PLAN_VALS.append(_heavy)
-    HEAVY_PLAN_MAU_RATE.append(_mr)
-    HEAVY_PLAN_HEAVY_RATE.append(_hr)
-    _hp_w += timedelta(days=7)
+# Heavy User plan line: fixed milestones from 3/1 (see HEAVY_PLAN_MILESTONES at module top).
+# HEAVY_PLAN_WEEKS / VALS / MAU_RATE / HEAVY_RATE are precomputed at module load.
 
 fig3, axes3 = plt.subplots(5, 1, figsize=(14, 20), sharex=True)
 
@@ -2190,39 +2195,8 @@ print("\n" + "=" * 50)
 print("Appendix Chart 1: KGI/KPI Weekly Trends (Target=100)")
 print("=" * 50, flush=True)
 
-# Compute appendix heavy plan line
-APP_HEAVY_PLAN_WEEKS = []
-APP_HEAVY_PLAN_VALS = []
-APP_HEAVY_PLAN_MAU_RATE = []
-APP_HEAVY_PLAN_HEAVY_RATE = []
-_app_hp_start_date = common_weeks[-1]
-_app_hp_end_date = week_monday(datetime(2026, 6, 28))
-_app_hp_total_days = (_app_hp_end_date - _app_hp_start_date).days
-_app_hp_w = _app_hp_start_date
-while _app_hp_w <= _app_hp_end_date:
-    if _app_hp_total_days > 0:
-        frac = (_app_hp_w - _app_hp_start_date).days / _app_hp_total_days
-    else:
-        frac = 1.0
-    frac = min(frac, 1.0)
-    _mr = _heavy_plan_start_mau_rate + frac * (APP_TARGET_MAU_RATE - _heavy_plan_start_mau_rate)
-    _hr = _heavy_plan_start_heavy_rate + frac * (APP_TARGET_HEAVY_RATE - _heavy_plan_start_heavy_rate)
-    _reg = None
-    for i in range(len(APP_PLAN_MILESTONES) - 1):
-        d0 = APP_PLAN_MILESTONES[i][0]
-        d1 = APP_PLAN_MILESTONES[i + 1][0]
-        if d0 <= _app_hp_w + timedelta(days=3) <= d1 + timedelta(days=7):
-            f2 = (_app_hp_w - d0).days / max((d1 - d0).days, 1)
-            _reg = APP_PLAN_MILESTONES[i][1] + f2 * (APP_PLAN_MILESTONES[i + 1][1] - APP_PLAN_MILESTONES[i][1])
-            break
-    if _reg is None:
-        _reg = APP_PLAN_MILESTONES[-1][1]
-    _heavy = _reg * (_mr / 100) * (_hr / 100)
-    APP_HEAVY_PLAN_WEEKS.append(_app_hp_w)
-    APP_HEAVY_PLAN_VALS.append(_heavy)
-    APP_HEAVY_PLAN_MAU_RATE.append(_mr)
-    APP_HEAVY_PLAN_HEAVY_RATE.append(_hr)
-    _app_hp_w += timedelta(days=7)
+# Appendix heavy plan line: fixed milestones from 3/1 (see APP_HEAVY_PLAN_MILESTONES at module top).
+# APP_HEAVY_PLAN_WEEKS / VALS / MAU_RATE / HEAVY_RATE are precomputed at module load.
 
 fig_app1, axes_app1 = plt.subplots(5, 1, figsize=(14, 20), sharex=True)
 

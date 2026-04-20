@@ -153,20 +153,23 @@ APP_TARGET_WEEKLY_SEARCH = 1555
 
 # ── Heavy User plan milestones (FIXED — do not recalculate from actuals) ──
 # (date, heavy_count, mau_rate%, heavy_rate%)
-# Main: TARGET_HEAVY=200, end rates 20%/20% — logistic curve matching registration plan
+# 3/1 starting point = week-of-2026-03-02 actual (Heavy=22, MAU率=18.2%, Heavy化率=18.4%)
+# heavy_count = reg_plan × mau_rate × heavy_rate (rates linear 18.2→20% / 18.4→20%)
+# Main: TARGET_HEAVY=200, end rates 20%/20%
 HEAVY_PLAN_MILESTONES = [
-    (datetime(2026, 3, 1),   15,  15.0, 15.0),  # 654 × 15% × 15%
-    (datetime(2026, 3, 31),  42,  17.0, 17.0),  # 1437 × 17% × 17%
-    (datetime(2026, 4, 30),  97,  18.0, 18.0),  # 2996 × 18% × 18%
-    (datetime(2026, 5, 31), 152,  19.0, 19.0),  # 4217 × 19% × 19%
-    (datetime(2026, 6, 28), 200,  20.0, 20.0),  # 5000 × 20% × 20%
+    (datetime(2026, 3, 1),   22,  18.2, 18.4),  #  654 × 18.2% × 18.4%
+    (datetime(2026, 3, 31),  50,  18.65, 18.80),  # 1437 × 18.65% × 18.80%
+    (datetime(2026, 4, 30), 110,  19.11, 19.21),  # 2996 × 19.11% × 19.21%
+    (datetime(2026, 5, 31), 162,  19.58, 19.62),  # 4217 × 19.58% × 19.62%
+    (datetime(2026, 6, 28), 200,  20.0, 20.0),   # 5000 × 20% × 20%
 ]
-# Appendix: Pre-A minimum scenario (APP_TARGET_HEAVY=100) — main halved
+# Appendix: Pre-A minimum scenario (APP_TARGET_HEAVY=100)
+# heavy_count = app_reg_scaled × same rates (app_reg: 654→924→1614→2154→2500)
 APP_HEAVY_PLAN_MILESTONES = [
-    (datetime(2026, 3, 1),    7,  15.0, 15.0),
-    (datetime(2026, 3, 31),  21,  17.0, 17.0),
-    (datetime(2026, 4, 30),  49,  18.0, 18.0),
-    (datetime(2026, 5, 31),  76,  19.0, 19.0),
+    (datetime(2026, 3, 1),   22,  18.2, 18.4),
+    (datetime(2026, 3, 31),  32,  18.65, 18.80),
+    (datetime(2026, 4, 30),  59,  19.11, 19.21),
+    (datetime(2026, 5, 31),  83,  19.58, 19.62),
     (datetime(2026, 6, 28), 100,  20.0, 20.0),
 ]
 

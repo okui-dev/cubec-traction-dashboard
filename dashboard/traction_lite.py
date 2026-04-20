@@ -3221,6 +3221,39 @@ with open(OUTPUT_DIR / "dashboard.html", "w", encoding="utf-8") as f:
 print("[OK] dashboard.html -> output/dashboard.html", flush=True)
 
 # ══════════════════════════════════════════════
+# Export weekly time-series CSV (investor-facing download)
+# ══════════════════════════════════════════════
+print("\nGenerating traction_weekly.csv...", flush=True)
+_c14b_search_total = {w: v for w, v in zip(c14b_weeks, c14b_total_all)}
+_c14b_search_users = {w: v for w, v in zip(c14b_weeks, c14b_users_all)}
+_csv_rows = [
+    ("週開始日(月)", "週終了日(日)", "累計登録医師数", "WAU", "WAU率(%)",
+     "MAU", "MAU率(%)", "平均DAU", "DAU率(%)",
+     "ヘビーユーザー数", "ヘビー化率(%)", "週次検索ボリューム", "週次ユニークユーザー数"),
+]
+for i, w in enumerate(common_weeks):
+    sun = w + timedelta(days=6)
+    _csv_rows.append((
+        w.strftime("%Y-%m-%d"),
+        sun.strftime("%Y-%m-%d"),
+        reg_vals[i],
+        wau_vals[i],
+        f"{rate_vals[i]:.2f}",
+        mau_vals[i],
+        f"{mau_rate_vals[i]:.2f}",
+        f"{avg_dau_vals[i]:.2f}",
+        f"{dau_rate_vals[i]:.2f}",
+        s15_count.get(w, 0),
+        f"{s15_pct_mau.get(w, 0):.2f}",
+        _c14b_search_total.get(w, ""),
+        _c14b_search_users.get(w, ""),
+    ))
+import csv as _csv
+with open(OUTPUT_DIR / "traction_weekly.csv", "w", encoding="utf-8-sig", newline="") as _f:
+    _csv.writer(_f).writerows(_csv_rows)
+print(f"[OK] traction_weekly.csv -> output/traction_weekly.csv ({len(_csv_rows)-1} rows)", flush=True)
+
+# ══════════════════════════════════════════════
 # Generate dashboard_overview.html (investor-facing)
 # Same charts but: #1 = App1 (ヘビー100人目標), KPI banner = App targets, no Appendix
 # ══════════════════════════════════════════════
@@ -3267,6 +3300,14 @@ html_overview = f'''<!DOCTYPE html>
 
 <h1>Cubec トラクションダッシュボード</h1>
 <p class="subtitle">データ最終日: {DATA_END.strftime("%Y-%m-%d")} | 最終完全週: {disp_week_label}</p>
+
+<div style="text-align:center;margin-bottom:24px;">
+  <a href="traction_weekly.csv" download
+     style="display:inline-block;background:#083d7c;color:#fff;text-decoration:none;padding:10px 22px;border-radius:6px;font-size:14px;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+    📥 週次データ（CSV）をダウンロード
+  </a>
+  <div style="color:#888;font-size:11px;margin-top:6px;">登録医師数 / WAU / MAU / ヘビーユーザー / 週次検索ボリューム 等（週次時系列）</div>
+</div>
 
 <div class="chart-section" style="background:#f8f9ff;border-left:4px solid #1a237e;margin-bottom:24px;">
   <h2 style="color:#1a237e;">用語定義</h2>

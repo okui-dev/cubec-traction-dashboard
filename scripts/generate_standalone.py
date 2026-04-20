@@ -31,3 +31,12 @@ for html_path, out_path in TARGETS:
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html_standalone)
     print(f"{out_path}: {os.path.getsize(out_path) / 1024 / 1024:.1f} MB")
+
+# Copy weekly CSV to repo root so overview.html's download link works
+import shutil
+_csv_src = os.path.join(IMG_DIR, "traction_weekly.csv")
+if os.path.exists(_csv_src):
+    shutil.copyfile(_csv_src, "traction_weekly.csv")
+    print(f"traction_weekly.csv: {os.path.getsize('traction_weekly.csv') / 1024:.1f} KB")
+else:
+    print(f"Skipping traction_weekly.csv (not found at {_csv_src})")

@@ -1230,6 +1230,73 @@ for w in exp_weeks:
     all_unique_users_by_week_all[w] = len(all_queries_by_week_user_all[w])
 
 
+# ══════════════════════════════════════════════
+# Business hours overlay aggregation
+# 月〜金 8:00-18:00 JST（祝休日は考慮せず、曜日と時刻のみで判定）の週次検索回数。
+# parse_date は時刻を捨てるため、ChatMessagePair CSV を再読込して hour 情報を復元する。
+# ══════════════════════════════════════════════
+print("\n" + "=" * 50)
+print("Business hours overlay aggregation")
+print("=" * 50, flush=True)
+
+BIZ_WEEKDAYS = set(range(0, 5))  # 月-金
+BIZ_HOUR_START = 8
+BIZ_HOUR_END = 18
+
+biz_count_by_week_all = defaultdict(int)  # 全 email 登録ユーザー
+biz_count_by_week_doc = defaultdict(int)  # 医師のみ
+
+with open(ACTIVITY_CSV, encoding=CSV_ENCODING, newline="") as f:
+    reader = csv.reader(f)
+    next(reader)
+    for row in reader:
+        uid = row[ACT_USERID_COL]
+        ts = row[ACT_CREATED_COL]
+        try:
+            dt = datetime.fromisoformat(ts)
+        except ValueError:
+            continue
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)  # 既に JST、tz情報のみ剥がす
+        if dt.date() > DATA_END.date():
+            continue
+        if not (dt.weekday() in BIZ_WEEKDAYS and BIZ_HOUR_START <= dt.hour < BIZ_HOUR_END):
+            continue
+        wm = week_monday(dt)
+        if uid in email_reg:
+            biz_count_by_week_all[wm] += 1
+        if uid in user_reg:
+            biz_count_by_week_doc[wm] += 1
+
+# trailing 7日window 用の集計（HAS_TRAILING時）
+if HAS_TRAILING:
+    with open(ACTIVITY_CSV, encoding=CSV_ENCODING, newline="") as f:
+        reader = csv.reader(f)
+        next(reader)
+        for row in reader:
+            uid = row[ACT_USERID_COL]
+            ts = row[ACT_CREATED_COL]
+            try:
+                dt = datetime.fromisoformat(ts)
+            except ValueError:
+                continue
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            if not (TRAILING_MONDAY.date() <= dt.date() <= DATA_END.date()):
+                continue
+            if not (dt.weekday() in BIZ_WEEKDAYS and BIZ_HOUR_START <= dt.hour < BIZ_HOUR_END):
+                continue
+            if uid in email_reg:
+                biz_count_by_week_all[TRAILING_MONDAY] += 1
+            if uid in user_reg:
+                biz_count_by_week_doc[TRAILING_MONDAY] += 1
+
+print(f"[OK] Business hours: {len(biz_count_by_week_all)} weeks (all), {len(biz_count_by_week_doc)} weeks (doc)", flush=True)
+if biz_count_by_week_all:
+    _last_w = max(biz_count_by_week_all.keys())
+    print(f"  Latest week ({_last_w.date()}): biz_all={biz_count_by_week_all[_last_w]}, biz_doc={biz_count_by_week_doc[_last_w]}")
+
+
 # ── S1: Cumulative Activation Rate ──
 print("\n── S1: Activation Rate ──", flush=True)
 # Cumulative activated users by week / cumulative registered by week
@@ -2799,13 +2866,22 @@ while _fw <= target_monday:
 c14b_all_weeks = c14b_weeks + c14b_future_weeks
 c14b_week_to_x = {w: i for i, w in enumerate(c14b_all_weeks)}
 
-def draw_search_volume_chart(title, plan_weeks, plan_vals, target_val, color, filename):
-    """Generate weekly search volume chart with target line."""
+def draw_search_volume_chart(title, plan_weeks, plan_vals, target_val, color, filename, biz_vals=None):
+    """Generate weekly search volume chart with target line.
+
+    biz_vals (optional): 月〜金 8:00-18:00 JST（祝休日は考慮せず）の週次検索回数。
+                        指定すると緑バーの内側に濃緑でオーバーレイ描画する。
+    """
     fig, ax = plt.subplots(figsize=(14, 6))
     actual_x = [c14b_week_to_x[w] for w in c14b_weeks]
 
     # Bars (actual data only)
     ax.bar(actual_x, c14b_total_all, width=0.7, label="総検索回数", color="#4CAF50", alpha=0.85)
+    # Business hours overlay
+    if biz_vals is not None:
+        ax.bar(actual_x, biz_vals, width=0.7,
+               label="うち月〜金 8:00-18:00 JST（祝休日は考慮せず）",
+               color="#1B5E20", alpha=0.95)
     ax.set_ylabel("検索回数", fontsize=11)
 
     # Target plan line (logistic curve, fixed milestones)
@@ -2823,6 +2899,11 @@ def draw_search_volume_chart(title, plan_weeks, plan_vals, target_val, color, fi
         ax.annotate(f"{c14b_total_all[-1]:,}", (actual_x[-1], c14b_total_all[-1]),
                     textcoords="offset points", xytext=(0, 8), ha="center",
                     fontsize=10, fontweight="bold", color="#333")
+    # Annotate latest biz hours
+    if biz_vals is not None and biz_vals:
+        ax.annotate(f"{biz_vals[-1]:,}", (actual_x[-1], biz_vals[-1]),
+                    textcoords="offset points", xytext=(0, -14), ha="center",
+                    fontsize=9, fontweight="bold", color="#fff")
 
     # Right axis: unique users
     ax_r = ax.twinx()
@@ -2851,17 +2932,22 @@ def draw_search_volume_chart(title, plan_weeks, plan_vals, target_val, color, fi
     print(f"[OK] {filename}", flush=True)
     plt.close(fig)
 
+# biz_vals: 月〜金 8:00-18:00 JST 週次検索回数（c14b_weeks に整列）
+c14b_biz_vals = [biz_count_by_week_all[w] for w in c14b_weeks]
+
 # 社内向けチャート (target: 2750)
 draw_search_volume_chart(
     "1. 週次検索ボリューム（全検索）",
     SEARCH_PLAN_WEEKS, SEARCH_PLAN_VALS, TARGET_WEEKLY_SEARCH, "#E91E63",
-    "chart14b_weekly_search_volume_all.png"
+    "chart14b_weekly_search_volume_all.png",
+    biz_vals=c14b_biz_vals,
 )
 # 投資家向けチャート (target: 1555)
 draw_search_volume_chart(
     "1. 週次検索ボリューム（全検索）",
     APP_SEARCH_PLAN_WEEKS, APP_SEARCH_PLAN_VALS, APP_TARGET_WEEKLY_SEARCH, "#FF9800",
-    "chart14b_weekly_search_volume_app.png"
+    "chart14b_weekly_search_volume_app.png",
+    biz_vals=c14b_biz_vals,
 )
 if c14b_total_all:
     print(f"  Latest: Total(all)={c14b_total_all[-1]} (D4+={c14b_d4_all[-1]}, D0-3={c14b_d03_all[-1]}), "
@@ -3063,7 +3149,7 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>1. 週次検索ボリューム（全検索）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師{TARGET_REG:,}人計画に連動した検索ボリューム目標（{TARGET_WEEKLY_SEARCH:,}回/週）</p>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師{TARGET_REG:,}人計画に連動した検索ボリューム目標（{TARGET_WEEKLY_SEARCH:,}回/週）</p>
   <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume">
 </div>
 
@@ -3194,7 +3280,7 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>App-1. 週次検索ボリューム（全検索・投資家向け目標）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）</p>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）</p>
   <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume App">
 </div>
 
@@ -3340,7 +3426,7 @@ html_overview = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>1. 週次検索ボリューム（全検索）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）</p>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）</p>
   <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume">
 </div>
 

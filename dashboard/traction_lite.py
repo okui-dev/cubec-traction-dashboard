@@ -3090,6 +3090,55 @@ _html_cum_act = cum_act.get(common_weeks[-1], 0)
 _html_act_rate = act_rate_vals_cw[-1] if act_rate_vals_cw else 0
 _html_return_rate = return_rate_vals[-1] if return_rate_vals else 0
 
+# ── Monthly aggregation (D7 table): cumulative doctors / calendar-month MAU / monthly searches ──
+# Definition (per CEO confirmation 2026-05-23):
+#   - 登録医師数: 月末時点の累計登録医師数（doctor strict filter）
+#   - MAU: 当月暦月内に1回以上検索した登録医師のユニーク数（D4+フィルタなし、登録後の全検索を対象）
+#   - 月間質問数（合計）: 当月暦月内の登録医師による検索数の合計（D4+フィルタなし）
+#   - 月質問数/MAU: 月間質問数（合計） / MAU
+print("\nComputing monthly summary (D7)...", flush=True)
+_month_first_act = min(sd for _, sd, _ in activities)
+_m_iter = datetime(_month_first_act.year, _month_first_act.month, 1)
+_months = []
+while _m_iter <= DATA_END:
+    _months.append(_m_iter)
+    _m_iter = next_month_start(_m_iter)
+
+_monthly_searches_by_uid = defaultdict(lambda: defaultdict(int))  # month_start -> uid -> count
+for _uid, _sd, _ in activities:
+    _ms = datetime(_sd.year, _sd.month, 1)
+    _monthly_searches_by_uid[_ms][_uid] += 1
+
+_monthly_rows = []  # list of (label, cum_doctors, mau, total_q, q_per_mau, is_partial)
+for _ms in _months:
+    _me = next_month_start(_ms) - timedelta(days=1)
+    _cum_doctors = sum(1 for _rd in user_reg.values() if _rd.date() <= _me.date())
+    _by_uid = _monthly_searches_by_uid.get(_ms, {})
+    _mau = len(_by_uid)
+    _total_q = sum(_by_uid.values())
+    _q_per_mau = _total_q / _mau if _mau > 0 else 0
+    _is_partial = (_me.date() > DATA_END.date())
+    _monthly_rows.append((_ms, _cum_doctors, _mau, _total_q, _q_per_mau, _is_partial))
+
+# Render table rows
+monthly_table_rows = ""
+for _ms, _cum, _mau, _q, _qpm, _partial in _monthly_rows:
+    _label = _ms.strftime("%Y-%m")
+    if _partial:
+        _label += f"<span style='color:#bbb;font-size:11px;'> ※{DATA_END.strftime('%-m/%-d') if os.name != 'nt' else f'{DATA_END.month}/{DATA_END.day}'}時点</span>"
+    _mau_rate = (_mau / _cum * 100) if _cum > 0 else 0
+    monthly_table_rows += (
+        f'    <tr><td>{_label}</td>'
+        f'<td>{_cum:,}</td>'
+        f'<td>{_mau:,}</td>'
+        f'<td>{_mau_rate:.1f}%</td>'
+        f'<td>{_q:,}</td>'
+        f'<td>{_qpm:.1f}</td></tr>\n'
+    )
+print(f"  Monthly rows: {len(_monthly_rows)} months ({_monthly_rows[0][0].strftime('%Y-%m')} - {_monthly_rows[-1][0].strftime('%Y-%m')})", flush=True)
+for _ms, _cum, _mau, _q, _qpm, _p in _monthly_rows[-3:]:
+    print(f"    {_ms.strftime('%Y-%m')}: 累計登録={_cum}, MAU={_mau}, 月Q合計={_q}, Q/MAU={_qpm:.1f}{' (途中)' if _p else ''}")
+
 html = f'''<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -3273,6 +3322,24 @@ html = f'''<!DOCTYPE html>
   <h2>D6. DAU率（平均DAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=平均DAU / 分母=累計登録医師数。日次ベースでの利用率</p>
   <img src="chart8d_dau_rate.png" alt="DAU Rate">
+</div>
+
+<div class="chart-section">
+  <h2>D7. 月次サマリー（暦月ベース・登録医師の全検索）</h2>
+  <p class="def">【定義】このテーブルは他チャートと異なり <b>D4+フィルタを使わない</b>。登録医師の登録後すべての検索を対象とした暦月集計。<br>
+    <b>累計登録医師数</b>: 月末時点で医師登録（doctorINfo strict）を完了している医師の累計人数<br>
+    <b>MAU</b>: 当月暦月内（1日〜末日）に1回以上検索した登録医師のユニーク数<br>
+    <b>MAU率</b>: MAU / 累計登録医師数（月末時点）<br>
+    <b>月間質問数（合計）</b>: 当月暦月内の登録医師による検索数の合計<br>
+    <b>月質問数/MAU</b>: 月間質問数（合計） / MAU。アクティブ医師1人あたりの月間検索数<br>
+    ※ 最新月はデータ取得日時点までの暫定値</p>
+  <table>
+    <thead>
+      <tr><th>月</th><th>累計登録医師数</th><th>MAU</th><th>MAU率</th><th>月間質問数（合計）</th><th>月質問数/MAU</th></tr>
+    </thead>
+    <tbody>
+{monthly_table_rows}    </tbody>
+  </table>
 </div>
 
 <hr style="margin:40px 0;border:none;border-top:3px solid #1a237e;">

@@ -2894,6 +2894,18 @@ def draw_search_volume_chart(title, plan_weeks, plan_vals, target_val, color, fi
                     textcoords="offset points", xytext=(8, 5), ha="left",
                     fontsize=11, fontweight="bold", color=color)
 
+    # 業務時間内 計画線（総検索計画の60%を目標値）
+    BIZ_TARGET_RATIO = 0.6
+    if biz_vals is not None and _plan_x and _plan_y:
+        _biz_plan_y = [v * BIZ_TARGET_RATIO for v in _plan_y]
+        _biz_plan_target = target_val * BIZ_TARGET_RATIO
+        ax.plot(_plan_x, _biz_plan_y, linestyle="--", linewidth=2.5, color="#00897B",
+                alpha=0.9,
+                label=f"業務時間内 計画: 総検索計画の{BIZ_TARGET_RATIO:.0%}（{_biz_plan_target:,.0f}/週）")
+        ax.annotate(f"{_biz_plan_target:,.0f}", (_plan_x[-1], _biz_plan_y[-1]),
+                    textcoords="offset points", xytext=(8, 5), ha="left",
+                    fontsize=11, fontweight="bold", color="#00897B")
+
     # Annotate latest actual
     if c14b_total_all:
         ax.annotate(f"{c14b_total_all[-1]:,}", (actual_x[-1], c14b_total_all[-1]),
@@ -3198,7 +3210,7 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>1. 週次検索ボリューム（全検索）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師{TARGET_REG:,}人計画に連動した検索ボリューム目標（{TARGET_WEEKLY_SEARCH:,}回/週）</p>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師{TARGET_REG:,}人計画に連動した検索ボリューム目標（{TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
   <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume">
 </div>
 
@@ -3347,7 +3359,7 @@ html = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>App-1. 週次検索ボリューム（全検索・投資家向け目標）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）</p>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{APP_TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
   <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume App">
 </div>
 
@@ -3493,7 +3505,7 @@ html_overview = f'''<!DOCTYPE html>
 
 <div class="chart-section">
   <h2>1. 週次検索ボリューム（全検索）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）</p>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{APP_TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
   <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume">
 </div>
 

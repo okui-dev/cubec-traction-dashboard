@@ -562,6 +562,10 @@ colors = plt.cm.viridis_r([i / max(n_c - 1, 1) for i in range(n_c)])
 
 fig, ax = plt.subplots(figsize=(14, 7))
 ax.stackplot(all_weeks, mille_matrix, labels=all_cohorts_mille, colors=colors, alpha=0.85)
+# 積上げ頂点が枠上端に接しないよう余白を確保
+_m1_peak = max((sum(col) for col in zip(*mille_matrix)), default=0)
+if _m1_peak > 0:
+    ax.set_ylim(0, _m1_peak * 1.10)
 ax.set_xlabel("週", fontsize=12)
 ax.set_ylabel("WAU（人）", fontsize=12)
 ax.set_title("6. コホート別WAU推移 — 医師認証済み（ミルフィーユチャート）", fontsize=14, fontweight="bold")
@@ -617,6 +621,10 @@ colors_1b = plt.cm.viridis_r([i / max(n_c_1b - 1, 1) for i in range(n_c_1b)])
 
 fig1b, ax1b = plt.subplots(figsize=(14, 7))
 ax1b.stackplot(all_weeks_1b, mille_matrix_1b, labels=all_cohorts_mille_1b, colors=colors_1b, alpha=0.85)
+# 積上げ頂点が枠上端に接しないよう余白を確保
+_m1b_peak = max((sum(col) for col in zip(*mille_matrix_1b)), default=0)
+if _m1b_peak > 0:
+    ax1b.set_ylim(0, _m1b_peak * 1.10)
 ax1b.set_xlabel("週", fontsize=12)
 ax1b.set_ylabel("WAU（人）", fontsize=12)
 ax1b.set_title("6b. コホート別WAU推移 — 全メール登録者（ミルフィーユチャート）", fontsize=14, fontweight="bold")
@@ -2115,23 +2123,17 @@ s15_days_vals = [s15_avg_active_days.get(w, 0) for w in s15_weeks]
 fig, (ax_top, ax_mid, ax_bot) = plt.subplots(3, 1, figsize=(10, 10), sharex=True,
                                               gridspec_kw={"height_ratios": [3, 2, 2]})
 
-# Top: 棒グラフ — ヘビーユーザー数（医師=濃紫 + 非医師=薄紫を上乗せ）
-# Non-doctor heavy users from S15c (all users, D4+) on top as reference
-_s15_nondoc_vals = [s15b_nondoctor_count.get(w, 0) for w in s15_weeks]
-_s15_total_vals = [d + nd for d, nd in zip(s15_c_vals, _s15_nondoc_vals)]
+# Top: 棒グラフ — ヘビーユーザー数（医師のみ）
 ax_top.bar(_s15_x, s15_c_vals, width=0.7, color="#9C27B0", alpha=0.85, label="医師")
-ax_top.bar(_s15_x, _s15_nondoc_vals, width=0.7, bottom=s15_c_vals, color="#90CAF9", alpha=0.45, label="医師未登録（参考）")
 ax_top.set_ylabel("ヘビーユーザー数")
 ax_top.set_title("2. ヘビーユーザー詳細（人数・検索回数・アクティブ日数）", fontsize=14, fontweight="bold")
 ax_top.legend(loc="upper left", fontsize=8)
 if s15_c_vals:
-    for _xi, _v, _vnd, _vtotal in zip(_s15_x, s15_c_vals, _s15_nondoc_vals, _s15_total_vals):
-        # Doctor count (KGI) — bold
-        ax_top.text(_xi, _v + 0.3 if _vnd == 0 else _v / 2, str(_v), ha="center", fontsize=9, color="#9C27B0" if _vnd == 0 else "white", fontweight="bold")
-        # Non-doctor count on top (if > 0)
-        if _vnd > 0:
-            ax_top.text(_xi, _v + _vnd / 2, str(_vnd), ha="center", fontsize=8, color="#7B1FA2", alpha=0.7)
-            ax_top.text(_xi, _vtotal + 0.3, str(_vtotal), ha="center", fontsize=8, color="#42A5F5")
+    for _xi, _v in zip(_s15_x, s15_c_vals):
+        ax_top.text(_xi, _v + 0.3, str(_v), ha="center", fontsize=9, color="#9C27B0", fontweight="bold")
+# 上ラベルが切れないよう頂点に余白を確保（データ量に依存しない係数方式）
+if s15_c_vals and max(s15_c_vals) > 0:
+    ax_top.set_ylim(0, max(s15_c_vals) * 1.18)
 
 # Middle: 折れ線 — 平均検索回数
 ax_mid.plot(_s15_x, s15_avg_vals, color="#FF9800", marker="o", linewidth=2)
@@ -2437,7 +2439,7 @@ for _xi, _v in zip(_s17_x, _s17_counts):
     ax.text(_xi, _v + 0.5, str(_v), ha="center", fontsize=9, color="#4CAF50", fontweight="bold")
 ax.set_ylabel("人数", fontsize=12)
 ax.set_title("5. 習慣化ユーザー — 人数・利用深度の推移", fontsize=14, fontweight="bold")
-ax.set_ylim(bottom=0)
+ax.set_ylim(0, max(_s17_counts) * 1.15 if _s17_counts and max(_s17_counts) > 0 else 1)
 
 # Row 2: 利用日数/人
 ax = axes[1]
@@ -2446,7 +2448,7 @@ ax.fill_between(_s17_x, _s17_days, alpha=0.12, color="#2196F3")
 for _xi, _v in zip(_s17_x, _s17_days):
     ax.text(_xi, _v + 0.2, f"{_v:.1f}", ha="center", fontsize=9, color="#2196F3", fontweight="bold")
 ax.set_ylabel("利用日数/人 (28日間)", fontsize=12)
-ax.set_ylim(bottom=0)
+ax.set_ylim(0, max(_s17_days) * 1.15 if _s17_days and max(_s17_days) > 0 else 1)
 
 # Row 3: 利用回数/人
 ax = axes[2]
@@ -2455,7 +2457,7 @@ ax.fill_between(_s17_x, _s17_searches, alpha=0.12, color="#FF9800")
 for _xi, _v in zip(_s17_x, _s17_searches):
     ax.text(_xi, _v + 0.5, f"{_v:.1f}", ha="center", fontsize=9, color="#FF9800", fontweight="bold")
 ax.set_ylabel("利用回数/人 (28日間)", fontsize=12)
-ax.set_ylim(bottom=0)
+ax.set_ylim(0, max(_s17_searches) * 1.15 if _s17_searches and max(_s17_searches) > 0 else 1)
 ax.set_xticks(_s17_x)
 ax.set_xticklabels(_s17_xlabels, rotation=45, ha="right")
 
@@ -2821,6 +2823,9 @@ if c14_total_all:
     ax14r.annotate(f"{c14_users_doc[-1]}", (_c14_x[-1], c14_users_doc[-1]),
                    textcoords="offset points", xytext=(8, -8), ha="left",
                    fontsize=9, color="#388E3C")
+    # 最頂バー上の値ラベルが切れないよう余白を確保
+    if max(c14_total_all) > 0:
+        ax14.set_ylim(0, max(c14_total_all) * 1.15)
 
 ax14.set_title("(参考) 週次検索ボリューム（D4+）", fontsize=14, fontweight="bold")
 

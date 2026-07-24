@@ -431,17 +431,24 @@ print(f"  Email registrations (all role=user): {email_registered_total}", flush=
 
 activities = []  # (user_id, search_date, days_since_reg) — doctor-filtered
 activities_all = []  # same but for ALL email-registered users (no doctor filter)
-with open(ACTIVITY_CSV, encoding=CSV_ENCODING, newline="") as f:
-    reader = csv.reader(f)
-    next(reader)
-    for row in reader:
-        uid = row[ACT_USERID_COL]
-        if uid in user_reg:
-            sd = parse_act_date(row[ACT_CREATED_COL])
-            activities.append((uid, sd, (sd - user_reg[uid]).days))
-        if uid in email_reg:
-            sd = parse_act_date(row[ACT_CREATED_COL])
-            activities_all.append((uid, sd, (sd - email_reg[uid]).days))
+_activity_sources = [(ACTIVITY_CSV, ACT_CREATED_COL, ACT_USERID_COL, parse_act_date)]
+if TRACTION_VARIANT == "login":
+    # loginバリアントは「ログイン または 検索」の和集合でアクティブ判定（2026-07-24 CEO指示）
+    _cmp_csv = find_latest_csv("raw_kpi - ChatMessagePair*.csv")
+    _cmp_cols = detect_columns(_cmp_csv)
+    _activity_sources.append((_cmp_csv, _cmp_cols.get("createdAt", 3), _cmp_cols.get("userId", 4), parse_date))
+for _src_csv, _src_ci, _src_ui, _src_parse in _activity_sources:
+    with open(_src_csv, encoding=CSV_ENCODING, newline="") as f:
+        reader = csv.reader(f)
+        next(reader)
+        for row in reader:
+            uid = row[_src_ui]
+            if uid in user_reg:
+                sd = _src_parse(row[_src_ci])
+                activities.append((uid, sd, (sd - user_reg[uid]).days))
+            if uid in email_reg:
+                sd = _src_parse(row[_src_ci])
+                activities_all.append((uid, sd, (sd - email_reg[uid]).days))
 
 print(f"  Activity events (doctors): {len(activities)}", flush=True)
 print(f"  Activity events (all users): {len(activities_all)}", flush=True)
@@ -2527,10 +2534,10 @@ print("=" * 50, flush=True)
 
 _C8A_TITLE = {"main": "14. MAU（28日窓・D4+）",
               "allsearch": "14. MAU（28日窓・全検索）",
-              "login": "14. MAU（28日窓・ログイン）"}[TRACTION_VARIANT]
+              "login": "14. MAU（28日窓・ログイン/検索）"}[TRACTION_VARIANT]
 _C8C_TITLE = {"main": "16. 平均DAU（日次D4+アクティブ医師数）",
               "allsearch": "16. 平均DAU（日次アクティブ医師数・全検索）",
-              "login": "16. 平均DAU（日次ログイン医師数）"}[TRACTION_VARIANT]
+              "login": "16. 平均DAU（日次利用医師数）"}[TRACTION_VARIANT]
 
 for _c8_name, _c8_vals, _c8_color, _c8_ylabel, _c8_title, _c8_fmt, _c8_fname in [
     ("MAU", mau_vals, "#9C27B0", "MAU（人）", _C8A_TITLE, "d", "chart8a_mau.png"),
@@ -3188,7 +3195,7 @@ for _ms, _cum, _mau, _q, _qpm, _p in _monthly_rows[-3:]:
 # ══════════════════════════════════════════════
 # バリアント別HTMLパーツ（mainでは従来と完全同一の文字列を生成する）
 # ══════════════════════════════════════════════
-_VPAGE = {"allsearch": "全検索ベース（スクリーニングなし）", "login": "ログインベース"}.get(TRACTION_VARIANT, "")
+_VPAGE = {"allsearch": "全検索ベース（スクリーニングなし）", "login": "ログイン/検索ベース"}.get(TRACTION_VARIANT, "")
 
 if IS_MAIN:
     TERM_DEF_BLOCK = '''<div class="chart-section" style="background:#f8f9ff;border-left:4px solid #1a237e;margin-bottom:24px;">
@@ -3222,17 +3229,17 @@ elif TRACTION_VARIANT == "allsearch":
 </div>'''
 else:  # login
     TERM_DEF_BLOCK = '''<div class="chart-section" style="background:#fff8f2;border-left:4px solid #f5773f;margin-bottom:24px;">
-  <h2 style="color:#1a237e;">用語定義（本ページ: ログインベース）</h2>
+  <h2 style="color:#1a237e;">用語定義（本ページ: ログイン/検索ベース）</h2>
   <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
-    <b>本ページの判定基準</b>: ログイン履歴（LoginHistory）ベースの参考値。検索の有無を問わず、ログインした日をアクティブと判定する。D4+スクリーニングは適用しない。<br>
-    <b>WAU</b>（Weekly Active Users）: 当該週に1回以上ログインした医師数。<br>
-    <b>MAU</b>（Monthly Active Users）: 過去28日間に1回以上ログインした医師数。<br>
-    <b>DAU</b>（Daily Active Users）: 当日に1回以上ログインした医師数。「平均DAU」は週内7日間の平均。<br>
+    <b>本ページの判定基準</b>: ログイン履歴（LoginHistory）と検索イベントの和集合による参考値。ログインまたは検索のいずれかを行った日をアクティブと判定する。D4+スクリーニングは適用しない。<br>
+    <b>WAU</b>（Weekly Active Users）: 当該週に1回以上ログインまたは検索した医師数。<br>
+    <b>MAU</b>（Monthly Active Users）: 過去28日間に1回以上ログインまたは検索した医師数。<br>
+    <b>DAU</b>（Daily Active Users）: 当日に1回以上ログインまたは検索した医師数。「平均DAU」は週内7日間の平均。<br>
     <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
-    <b>アクティベーション</b>: 医師が初めてログインすること。<br>
+    <b>アクティベーション</b>: 医師が初めてログインまたは検索すること。<br>
     <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
-    <b>リテンション</b>: ある期間に再びログインしたユーザーの割合。分母はコホート全員。<br>
-    ※ ログイン履歴の記録は2025-05-09開始。タイムスタンプはJSTに正規化して日次判定。<br>
+    <b>リテンション</b>: ある期間に再びログインまたは検索したユーザーの割合。分母はコホート全員。<br>
+    ※ ログイン履歴の記録は2025-05-09開始、検索ログは2025-05-30開始。タイムスタンプはJSTに正規化して日次判定。<br>
   </p>
 </div>'''
 
@@ -3345,32 +3352,33 @@ if TRACTION_VARIANT == "allsearch":
 elif TRACTION_VARIANT == "login":
     _VARIANT_REPL = [
         ("このテーブルは他チャートと異なり <b>D4+フィルタを使わない</b>。登録医師の登録後すべての検索を対象とした暦月集計。",
-         "登録医師の登録後すべてのログインを対象とした暦月集計。"),
-        ("D4+で当該週に1回以上検索した医師数", "当該週に1回以上ログインした医師数"),
-        ("D4+検索を1回以上行った", "1回以上ログインした"),
-        ("当週初めてD4+検索した", "当週初めてログインした"),
-        ("初めてD4+検索した月", "初めてログインした月"),
-        ("D4+検索を行った医師数の7日間平均", "ログインした医師数の7日間平均"),
-        ("D4+初検索日", "初ログイン日"),
-        ("日別D4+検索者数", "日別ログイン者数"),
-        ("検索した医師（D4+）", "ログインした医師"),
-        ("MAU（28日窓・D4+）", "MAU（28日窓・ログイン）"),
-        ("平均DAU（日次アクティブ医師数・D4+）", "平均DAU（日次ログイン医師数）"),
-        ("各期間に1回以上検索した医師の割合", "各期間に1回以上ログインした医師の割合"),
-        ("当該期間に1回以上検索した医師数", "当該期間に1回以上ログインした医師数"),
-        ("当該期間に検索した医師数", "当該期間にログインした医師数"),
-        ("当該窓で検索した医師数", "当該窓でログインした医師数"),
-        ("1回以上検索した割合", "1回以上ログインした割合"),
-        ("3週以上で1回以上検索した", "3週以上で1回以上ログインした"),
-        ("1人当たり平均検索回数", "1人当たり平均ログイン回数"),
-        ("1回以上検索した登録医師", "1回以上ログインした登録医師"),
-        ("月間質問数（合計）", "月間ログイン数（合計）"),
-        ("月質問数/MAU", "月ログイン数/MAU"),
-        ("登録医師による検索数の合計", "登録医師によるログイン数の合計"),
-        ("アクティブ医師1人あたりの月間検索数", "アクティブ医師1人あたりの月間ログイン数"),
-        ("28日間に10回以上検索した", "28日間に10回以上ログインした"),
-        ("当該週の全ユーザーの総検索回数", "当該週の全ユーザーの総ログイン回数"),
-        ("週次検索ボリューム", "週次ログイン数"),
+         "登録医師の登録後すべての利用イベント（ログイン+検索）を対象とした暦月集計。"),
+        ("D4+で当該週に1回以上検索した医師数", "当該週に1回以上ログインまたは検索した医師数"),
+        ("D4+検索を1回以上行った", "1回以上ログインまたは検索した"),
+        ("当週初めてD4+検索した", "当週初めてログインまたは検索した"),
+        ("初めてD4+検索した月", "初めてログインまたは検索した月"),
+        ("D4+検索を行った医師数の7日間平均", "ログインまたは検索した医師数の7日間平均"),
+        ("D4+初検索日", "初利用日（初回のログインまたは検索）"),
+        ("日別D4+検索者数", "日別利用者数"),
+        ("検索した医師（D4+）", "利用した医師"),
+        ("MAU（28日窓・D4+）", "MAU（28日窓・ログイン/検索）"),
+        ("平均DAU（日次アクティブ医師数・D4+）", "平均DAU（日次利用医師数）"),
+        ("各期間に1回以上検索した医師の割合", "各期間に1回以上ログインまたは検索した医師の割合"),
+        ("当該期間に1回以上検索した医師数", "当該期間に1回以上ログインまたは検索した医師数"),
+        ("当該期間に検索した医師数", "当該期間にログインまたは検索した医師数"),
+        ("当該窓で検索した医師数", "当該窓でログインまたは検索した医師数"),
+        ("1回以上検索した割合", "1回以上ログインまたは検索した割合"),
+        ("3週以上で1回以上検索した", "3週以上で1回以上ログインまたは検索した"),
+        ("1人当たり平均検索回数", "1人当たり平均利用イベント数"),
+        ("1回以上検索した登録医師", "1回以上ログインまたは検索した登録医師"),
+        ("月間質問数（合計）", "月間利用イベント数（合計）"),
+        ("月質問数/MAU", "月イベント数/MAU"),
+        ("登録医師による検索数の合計", "登録医師による利用イベント数（ログイン+検索）の合計"),
+        ("アクティブ医師1人あたりの月間検索数", "アクティブ医師1人あたりの月間利用イベント数"),
+        ("28日間に10回以上検索した医師。習慣的利用の指標", "28日間に10回以上の利用イベント（ログイン+検索）があった医師（参考）"),
+        ("28日間に10回以上検索した", "28日間に10回以上利用した"),
+        ("当該週の全ユーザーの総検索回数", "当該週の全ユーザーの総利用イベント数（ログイン+検索）"),
+        ("週次検索ボリューム", "週次利用イベント数"),
         ("A. ヘビーユーザー（定着指標）", "A. 定着指標"),
     ]
 
@@ -3397,7 +3405,7 @@ def finalize_html(html_text, page):
     _base = "overview" if page == "overview" else "index"
     _links = (f'<a href="{_base}.html">本体（D4+）</a> ｜ '
               f'<a href="{_base}_allsearch.html">全検索</a> ｜ '
-              f'<a href="{_base}_login.html">ログイン</a>')
+              f'<a href="{_base}_login.html">ログイン/検索</a>')
     _banner = (
         '<div style="background:#fff3e0;border-left:4px solid #f5773f;border-radius:8px;'
         'padding:14px 20px;margin:0 auto 24px;max-width:900px;font-size:13px;color:#5d4037;line-height:1.8;">'

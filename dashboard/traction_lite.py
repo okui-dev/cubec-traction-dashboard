@@ -42,8 +42,20 @@ plt.rcParams["axes.unicode_minus"] = False
 plt.rcParams["axes.grid"] = True
 plt.rcParams["grid.alpha"] = 0.3
 
+# ── Variant control (2026-07-24: 投資家向け 非スクリーニング参考版) ──
+# main      = 現行のD4+検索ベース（デフォルト。出力は従来と完全一致すること）
+# allsearch = 全検索（D0+）。D4+スクリーニングを外した参考値
+# login     = LoginHistoryベース。ログインのみでアクティブ判定した参考値
+# 参考版では計画線チャート(chart3/3c/appendix1)はHTMLから参照しない（CEO確定計画はD4+前提のため）
+TRACTION_VARIANT = os.environ.get("TRACTION_VARIANT", "main")
+if TRACTION_VARIANT not in ("main", "allsearch", "login"):
+    raise SystemExit(f"Unknown TRACTION_VARIANT: {TRACTION_VARIANT!r} (use main | allsearch | login)")
+IS_MAIN = TRACTION_VARIANT == "main"
+MIN_DAYS = 4 if IS_MAIN else 0
+
 # ── Settings ──
-OUTPUT_DIR = Path(os.environ.get("TRACTION_OUTPUT_DIR", "output"))
+_default_output = "output" if IS_MAIN else f"output_{TRACTION_VARIANT}"
+OUTPUT_DIR = Path(os.environ.get("TRACTION_OUTPUT_DIR", _default_output))
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 CSV_ENCODING = "utf-8-sig"
@@ -61,7 +73,11 @@ def find_latest_csv(pattern):
 
 
 USER_CSV = find_latest_csv("raw_kpi - User*.csv")
-ACTIVITY_CSV = find_latest_csv("raw_kpi - ChatMessagePair*.csv")
+if TRACTION_VARIANT == "login":
+    # LoginHistory: id / __typename / createdAt / updatedAt / userId（userIdはUser.idと同形式）
+    ACTIVITY_CSV = find_latest_csv("raw_kpi - LoginHistory*.csv")
+else:
+    ACTIVITY_CSV = find_latest_csv("raw_kpi - ChatMessagePair*.csv")
 
 # Column detection: read headers and find by name
 def detect_columns(csv_path, encoding="utf-8-sig"):
@@ -241,6 +257,22 @@ def parse_date(s):
     return datetime.strptime(s[:10].replace("/", "-"), "%Y-%m-%d")
 
 
+def parse_date_login(s):
+    """LoginHistory createdAt はUTC('...Z')と'+09:00'が混在。JSTに正規化して日付を取る。"""
+    from datetime import timezone as _tz
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return parse_date(s)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(_tz(timedelta(hours=9))).replace(tzinfo=None)
+    return datetime(dt.year, dt.month, dt.day)
+
+
+# 活動イベントの日付パーサ（loginバリアントのみTZ正規化が必要）
+parse_act_date = parse_date_login if TRACTION_VARIANT == "login" else parse_date
+
+
 def week_monday(dt):
     """Monday of the week containing dt."""
     return datetime(dt.year, dt.month, dt.day) - timedelta(days=dt.weekday())
@@ -405,10 +437,10 @@ with open(ACTIVITY_CSV, encoding=CSV_ENCODING, newline="") as f:
     for row in reader:
         uid = row[ACT_USERID_COL]
         if uid in user_reg:
-            sd = parse_date(row[ACT_CREATED_COL])
+            sd = parse_act_date(row[ACT_CREATED_COL])
             activities.append((uid, sd, (sd - user_reg[uid]).days))
         if uid in email_reg:
-            sd = parse_date(row[ACT_CREATED_COL])
+            sd = parse_act_date(row[ACT_CREATED_COL])
             activities_all.append((uid, sd, (sd - email_reg[uid]).days))
 
 print(f"  Activity events (doctors): {len(activities)}", flush=True)
@@ -523,7 +555,7 @@ print("=" * 50, flush=True)
 # D4+ events grouped by (week, cohort_label) -> unique users
 week_cohort_users = defaultdict(lambda: defaultdict(set))
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         w = week_monday(sd)
         c_label = MILLE_LABEL_MAP.get(cohort_month(user_reg[uid]), cohort_month(user_reg[uid]))
         week_cohort_users[w][c_label].add(uid)
@@ -553,7 +585,7 @@ if DATA_END.date() < last_w_sunday.date():
     # Compute trailing WAU for millefeuille (cohort -> set of users active in trailing window)
     trailing_cohort_users = defaultdict(set)
     for uid, sd, days in activities:
-        if days >= 4 and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
+        if days >= MIN_DAYS and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
             c_label = MILLE_LABEL_MAP.get(cohort_month(user_reg[uid]), cohort_month(user_reg[uid]))
             trailing_cohort_users[c_label].add(uid)
     week_cohort_users[TRAILING_MONDAY] = trailing_cohort_users
@@ -599,7 +631,7 @@ print("\nChart 1b: Millefeuille (all users)", flush=True)
 
 week_cohort_users_all = defaultdict(lambda: defaultdict(set))
 for uid, sd, days in activities_all:
-    if days >= 4:
+    if days >= MIN_DAYS:
         w = week_monday(sd)
         c_label = MILLE_LABEL_MAP.get(cohort_month(email_reg[uid]), cohort_month(email_reg[uid]))
         week_cohort_users_all[w][c_label].add(uid)
@@ -615,7 +647,7 @@ if all_weeks_1b:
     if HAS_TRAILING:
         trailing_cohort_users_all = defaultdict(set)
         for uid, sd, days in activities_all:
-            if days >= 4 and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
+            if days >= MIN_DAYS and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
                 c_label = MILLE_LABEL_MAP.get(cohort_month(email_reg[uid]), cohort_month(email_reg[uid]))
                 trailing_cohort_users_all[c_label].add(uid)
         week_cohort_users_all[TRAILING_MONDAY] = trailing_cohort_users_all
@@ -659,7 +691,7 @@ wau_by_week = {w: sum(len(week_cohort_users[w].get(c, set())) for c in all_cohor
 if HAS_TRAILING:
     trailing_d4_users = set()
     for uid, sd, days in activities:
-        if days >= 4 and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
+        if days >= MIN_DAYS and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
             trailing_d4_users.add(uid)
 
 
@@ -817,7 +849,7 @@ for w in sorted(reg_by_week.keys()):
 d4_eligible_by_week = {}
 for w in sorted(cum_reg.keys()):
     week_end = w + timedelta(days=6)  # Sunday
-    d4_cutoff = week_end - timedelta(days=3)  # registered on or before this date → D4+ eligible
+    d4_cutoff = week_end - timedelta(days=max(MIN_DAYS - 1, 0))  # registered on or before this date → eligible
     eligible = sum(1 for rd in user_reg.values() if rd.date() <= d4_cutoff.date())
     d4_eligible_by_week[w] = eligible
 
@@ -827,7 +859,7 @@ if HAS_TRAILING:
     cum_reg[TRAILING_MONDAY] = max(cum_reg.values())
     cum_email_reg[TRAILING_MONDAY] = max(cum_email_reg.values()) if cum_email_reg else 0
     # D4+ eligible at trailing point: use DATA_END as the window end
-    t_d4_cutoff = DATA_END - timedelta(days=3)
+    t_d4_cutoff = DATA_END - timedelta(days=max(MIN_DAYS - 1, 0))
     d4_eligible_by_week[TRAILING_MONDAY] = sum(1 for rd in user_reg.values() if rd.date() <= t_d4_cutoff.date())
 
 # Common weeks
@@ -1084,7 +1116,7 @@ print("=" * 50, flush=True)
 # DAU by date (D4+ only)
 dau_by_date_early = defaultdict(set)
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         dau_by_date_early[sd.date()].add(uid)
 
 # MAU (28-day window ending each week's Sunday), avg DAU, and rates
@@ -1099,7 +1131,7 @@ for w in common_weeks:
     # MAU: unique D4+ users in 28-day window
     mau_set = set()
     for uid, sd, days_since in activities:
-        if days_since >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days_since >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             mau_set.add(uid)
     mau = len(mau_set)
     mau_by_week[w] = mau
@@ -1143,7 +1175,7 @@ registered_total = len(user_reg)
 # D4+ events by (week -> set of user_ids)  — reuse week_cohort_users but flatten
 exp_weekly_sets = defaultdict(set)
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         exp_weekly_sets[week_monday(sd)].add(uid)
 
 # Add trailing window to exp_weekly_sets
@@ -1172,7 +1204,7 @@ elif exp_chart_weeks and HAS_TRAILING:
 # First D4+ date per user
 first_d4 = {}  # user_id -> first search_date with days>=4
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         if uid not in first_d4 or sd < first_d4[uid]:
             first_d4[uid] = sd
 
@@ -1182,13 +1214,13 @@ activation_week = {uid: week_monday(dt) for uid, dt in first_d4.items()}
 # D4+ query counts by (week, user_id)
 d4_queries_by_week_user = defaultdict(lambda: defaultdict(int))
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         d4_queries_by_week_user[week_monday(sd)][uid] += 1
 
 # Add trailing query counts
 if HAS_TRAILING:
     for uid, sd, days in activities:
-        if days >= 4 and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
+        if days >= MIN_DAYS and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
             d4_queries_by_week_user[TRAILING_MONDAY][uid] += 1
 
 # Total D4+ queries per week
@@ -1201,12 +1233,12 @@ for w in exp_weeks:
 # D4+ query counts — all users (no doctor filter)
 d4_queries_by_week_user_all = defaultdict(lambda: defaultdict(int))
 for uid, sd, days in activities_all:
-    if days >= 4:
+    if days >= MIN_DAYS:
         d4_queries_by_week_user_all[week_monday(sd)][uid] += 1
 
 if HAS_TRAILING:
     for uid, sd, days in activities_all:
-        if days >= 4 and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
+        if days >= MIN_DAYS and TRAILING_MONDAY.date() <= sd.date() <= DATA_END.date():
             d4_queries_by_week_user_all[TRAILING_MONDAY][uid] += 1
 
 d4_total_queries_by_week_all = defaultdict(int)
@@ -1367,7 +1399,7 @@ if HAS_TRAILING:
     _s2_trailing_prev_end = TRAILING_MONDAY - timedelta(days=1)
     _s2_trailing_prev = set()
     for uid, sd, days in activities:
-        if days >= 4 and _s2_trailing_prev_start.date() <= sd.date() <= _s2_trailing_prev_end.date():
+        if days >= MIN_DAYS and _s2_trailing_prev_start.date() <= sd.date() <= _s2_trailing_prev_end.date():
             _s2_trailing_prev.add(uid)
     print(f"  Trailing prev window: {_s2_trailing_prev_start.date()} ~ {_s2_trailing_prev_end.date()} ({len(_s2_trailing_prev)} users)")
 
@@ -1438,7 +1470,7 @@ for week in exp_weeks:
     # MAU: unique users with D4+ activity in 28-day window ending this week's Sunday
     mau_set = set()
     for uid, sd, days in activities:
-        if days >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             mau_set.add(uid)
     wau = len(exp_weekly_sets.get(week, set()))
     mau = len(mau_set)
@@ -1454,7 +1486,7 @@ print("\n── S6: W4 Retention (by cohort) ──", flush=True)
 # For each activated user: check if they were active 4 weeks after activation
 exp_active_pairs = set()
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         exp_active_pairs.add((uid, week_monday(sd)))
 
 last_exp_week = exp_weeks[-1] if exp_weeks else None
@@ -1480,7 +1512,7 @@ dow_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 dow_searches = defaultdict(int)
 dow_users = defaultdict(set)
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         d = sd.weekday()
         dow_searches[d] += 1
         dow_users[d].add(uid)
@@ -1494,7 +1526,7 @@ print("\n── S9: DAU/MAU Ratio ──", flush=True)
 # DAU by date
 dau_by_date = defaultdict(set)
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         dau_by_date[sd.date()].add(uid)
 
 s9_ratio = {}
@@ -1511,7 +1543,7 @@ for week in exp_weeks:
     # MAU (28-day window)
     mau_set = set()
     for uid, sd, days in activities:
-        if days >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             mau_set.add(uid)
     mau = len(mau_set)
     s9_ratio[week] = avg_dau / mau * 100 if mau > 0 else 0
@@ -1536,7 +1568,7 @@ for week in exp_weeks:
     window_user_queries = defaultdict(int)  # user_id -> total queries in window
     window_user_week_queries = defaultdict(lambda: defaultdict(int))  # user_id -> week -> count
     for uid, sd, days in activities:
-        if days >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             window_user_queries[uid] += 1
             window_user_week_queries[uid][week_monday(sd)] += 1
 
@@ -1577,7 +1609,7 @@ for week in exp_weeks:
     w28 = w_end - timedelta(days=27)
     wuq_all = defaultdict(lambda: defaultdict(int))
     for uid, sd, days in activities_all:
-        if days >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             wuq_all[uid][week_monday(sd)] += 1
     power = 0
     for uid, wq in wuq_all.items():
@@ -1646,7 +1678,7 @@ print("\n-- S14: Cohort Deepening --", flush=True)
 # Monthly search counts per user (D4+ only)
 _user_monthly_searches = defaultdict(lambda: defaultdict(int))
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         mk = sd.strftime('%Y-%m')
         _user_monthly_searches[uid][mk] += 1
 
@@ -1655,7 +1687,7 @@ _act_month_cohorts = defaultdict(list)
 for uid, dt in first_d4.items():
     _act_month_cohorts[dt.strftime('%Y-%m')].append(uid)
 
-_month_list = sorted(set(sd.strftime('%Y-%m') for _, sd, d in activities if d >= 4))
+_month_list = sorted(set(sd.strftime('%Y-%m') for _, sd, d in activities if d >= MIN_DAYS))
 
 s14_data = {}  # {cohort_month: [(offset, active_n, total_n, avg_active, median_active)]}
 for cm in sorted(_act_month_cohorts.keys()):
@@ -1698,7 +1730,7 @@ for week in exp_weeks:
     u28 = defaultdict(int)
     u28_days = defaultdict(set)  # uid -> set of active dates
     for uid, sd, days in activities:
-        if days >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             u28[uid] += 1
             u28_days[uid].add(sd.date())
     mau = len(u28)
@@ -1750,7 +1782,7 @@ for week in exp_weeks:
     u_days = defaultdict(set)
     u_weekly = defaultdict(lambda: defaultdict(int))
     for uid, sd, days_since in activities:
-        if days_since >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days_since >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             u_searches[uid] += 1
             u_days[uid].add(sd.date())
             u_weekly[uid][week_monday(sd)] += 1
@@ -1782,7 +1814,7 @@ for week in exp_weeks:
     w28 = w_end - timedelta(days=27)
     u28_all = defaultdict(int)
     for uid, sd, days in activities_all:
-        if days >= 4 and w28.date() <= sd.date() <= w_end.date():
+        if days >= MIN_DAYS and w28.date() <= sd.date() <= w_end.date():
             u28_all[uid] += 1
     mau_all = len(u28_all)
     hab_all_uids = {uid for uid, v in u28_all.items() if v >= 10}
@@ -1815,7 +1847,7 @@ print("\n-- S16: Post-Activation Monthly Retention (per-user rolling) --", flush
 # Build set of active dates per user (D4+ only)
 _user_active_dates = defaultdict(set)
 for uid, sd, days in activities:
-    if days >= 4:
+    if days >= MIN_DAYS:
         _user_active_dates[uid].add(sd.date())
 
 # Group by activation month, merging small cohorts (same as retention heatmap)
@@ -2493,10 +2525,17 @@ print("\n" + "=" * 50)
 print("Chart 8: MAU / DAU Trends")
 print("=" * 50, flush=True)
 
+_C8A_TITLE = {"main": "14. MAU（28日窓・D4+）",
+              "allsearch": "14. MAU（28日窓・全検索）",
+              "login": "14. MAU（28日窓・ログイン）"}[TRACTION_VARIANT]
+_C8C_TITLE = {"main": "16. 平均DAU（日次D4+アクティブ医師数）",
+              "allsearch": "16. 平均DAU（日次アクティブ医師数・全検索）",
+              "login": "16. 平均DAU（日次ログイン医師数）"}[TRACTION_VARIANT]
+
 for _c8_name, _c8_vals, _c8_color, _c8_ylabel, _c8_title, _c8_fmt, _c8_fname in [
-    ("MAU", mau_vals, "#9C27B0", "MAU（人）", "14. MAU（28日窓・D4+）", "d", "chart8a_mau.png"),
+    ("MAU", mau_vals, "#9C27B0", "MAU（人）", _C8A_TITLE, "d", "chart8a_mau.png"),
     ("MAU Rate", mau_rate_vals, "#E91E63", "MAU率（%）", "15. MAU率（MAU / 累計登録医師数）", ".1f", "chart8b_mau_rate.png"),
-    ("Avg DAU", avg_dau_vals, "#00BCD4", "平均DAU（人）", "16. 平均DAU（日次D4+アクティブ医師数）", ".1f", "chart8c_avg_dau.png"),
+    ("Avg DAU", avg_dau_vals, "#00BCD4", "平均DAU（人）", _C8C_TITLE, ".1f", "chart8c_avg_dau.png"),
     ("DAU Rate", dau_rate_vals, "#FF5722", "DAU率（%）", "17. DAU率（平均DAU / 累計登録医師数）", ".1f", "chart8d_dau_rate.png"),
 ]:
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -3146,6 +3185,231 @@ print(f"  Monthly rows: {len(_monthly_rows)} months ({_monthly_rows[0][0].strfti
 for _ms, _cum, _mau, _q, _qpm, _p in _monthly_rows[-3:]:
     print(f"    {_ms.strftime('%Y-%m')}: 累計登録={_cum}, MAU={_mau}, 月Q合計={_q}, Q/MAU={_qpm:.1f}{' (途中)' if _p else ''}")
 
+# ══════════════════════════════════════════════
+# バリアント別HTMLパーツ（mainでは従来と完全同一の文字列を生成する）
+# ══════════════════════════════════════════════
+_VPAGE = {"allsearch": "全検索ベース（スクリーニングなし）", "login": "ログインベース"}.get(TRACTION_VARIANT, "")
+
+if IS_MAIN:
+    TERM_DEF_BLOCK = '''<div class="chart-section" style="background:#f8f9ff;border-left:4px solid #1a237e;margin-bottom:24px;">
+  <h2 style="color:#1a237e;">用語定義</h2>
+  <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
+    <b>D4+</b>: 登録から4日以上経過した状態。初期探索期間（登録直後の試用）を除外し、真の利用意思を持つユーザーのみを計測対象とするためのフィルタ。<br>
+    <b>WAU</b>（Weekly Active Users）: D4+で当該週に1回以上検索した医師数。<br>
+    <b>MAU</b>（Monthly Active Users）: 過去28日間にD4+検索を1回以上行った医師数。<br>
+    <b>DAU</b>（Daily Active Users）: 当日にD4+検索を1回以上行った医師数。「平均DAU」は週内7日間の平均。<br>
+    <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
+    <b>アクティベーション</b>: 医師がD4+で初めて検索を行うこと。アクティベーション率 = 累計アクティベート済み医師数 / 累計登録医師数。<br>
+    <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
+    <b>リテンション</b>: ある期間に再びアクティブだったユーザーの割合。分母はコホート全員。<br>
+    <b>ヘビーユーザー</b>: 28日間に10回以上検索した医師。習慣的利用の指標。<br>
+  </p>
+</div>'''
+elif TRACTION_VARIANT == "allsearch":
+    TERM_DEF_BLOCK = '''<div class="chart-section" style="background:#fff8f2;border-left:4px solid #f5773f;margin-bottom:24px;">
+  <h2 style="color:#1a237e;">用語定義（本ページ: 全検索ベース・スクリーニングなし）</h2>
+  <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
+    <b>本ページの判定基準</b>: D4+スクリーニング（登録4日以降の検索のみ計上）を適用しない参考値。登録初日（D0）を含む全ての検索でアクティブと判定する。<br>
+    <b>WAU</b>（Weekly Active Users）: 当該週に1回以上検索した医師数。<br>
+    <b>MAU</b>（Monthly Active Users）: 過去28日間に検索を1回以上行った医師数。<br>
+    <b>DAU</b>（Daily Active Users）: 当日に検索を1回以上行った医師数。「平均DAU」は週内7日間の平均。<br>
+    <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
+    <b>アクティベーション</b>: 医師が初めて検索を行うこと。アクティベーション率 = 累計アクティベート済み医師数 / 累計登録医師数。<br>
+    <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
+    <b>リテンション</b>: ある期間に再びアクティブだったユーザーの割合。分母はコホート全員。<br>
+    <b>ヘビーユーザー</b>: 28日間に10回以上検索した医師（全検索ベース）。<br>
+  </p>
+</div>'''
+else:  # login
+    TERM_DEF_BLOCK = '''<div class="chart-section" style="background:#fff8f2;border-left:4px solid #f5773f;margin-bottom:24px;">
+  <h2 style="color:#1a237e;">用語定義（本ページ: ログインベース）</h2>
+  <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
+    <b>本ページの判定基準</b>: ログイン履歴（LoginHistory）ベースの参考値。検索の有無を問わず、ログインした日をアクティブと判定する。D4+スクリーニングは適用しない。<br>
+    <b>WAU</b>（Weekly Active Users）: 当該週に1回以上ログインした医師数。<br>
+    <b>MAU</b>（Monthly Active Users）: 過去28日間に1回以上ログインした医師数。<br>
+    <b>DAU</b>（Daily Active Users）: 当日に1回以上ログインした医師数。「平均DAU」は週内7日間の平均。<br>
+    <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
+    <b>アクティベーション</b>: 医師が初めてログインすること。<br>
+    <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
+    <b>リテンション</b>: ある期間に再びログインしたユーザーの割合。分母はコホート全員。<br>
+    ※ ログイン履歴の記録は2025-05-09開始。タイムスタンプはJSTに正規化して日次判定。<br>
+  </p>
+</div>'''
+
+# ── セクション部品（mainは従来文字列そのまま。""のセクションは出力から消える） ──
+SEC_FULL_SEARCHVOL = f'''<div class="chart-section">
+  <h2>1. 週次検索ボリューム（全検索）</h2>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師{TARGET_REG:,}人計画に連動した検索ボリューム目標（{TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
+  <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume">
+</div>''' if TRACTION_VARIANT != "login" else ""
+
+SEC_OV_SEARCHVOL = f'''<div class="chart-section">
+  <h2>1. 週次検索ボリューム（全検索）</h2>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{APP_TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
+  <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume">
+</div>''' if TRACTION_VARIANT != "login" else ""
+
+_KGI_NUMBERS_HTML = f'<div class="numbers"><span class="kgi-val">{s15_count.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}</span> = {reg_vals[-1]} × {mau_rate_vals[-1]:.1f}% × {s15_pct_mau.get(exp_chart_weeks[-1] if exp_chart_weeks else common_weeks[-1], 0)}%</div>'
+
+if IS_MAIN:
+    SEC_FULL_KPIBANNER = f'''<div class="kpi-banner">
+  <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
+  {_KGI_NUMBERS_HTML}
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{TARGET_HEAVY}</span> = {TARGET_REG:,} × {TARGET_MAU_RATE}% × {TARGET_HEAVY_RATE}%</div>
+</div>'''
+    SEC_OV_KPIBANNER = f'''<div class="kpi-banner">
+  <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
+  {_KGI_NUMBERS_HTML}
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
+</div>'''
+elif TRACTION_VARIANT == "allsearch":
+    SEC_FULL_KPIBANNER = f'''<div class="kpi-banner">
+  <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率（全検索ベース・参考値）</div>
+  {_KGI_NUMBERS_HTML}
+</div>'''
+    SEC_OV_KPIBANNER = SEC_FULL_KPIBANNER
+else:  # login: ヘビーユーザー系は非表示（検索回数ベースの定義がログインでは成立しないため）
+    SEC_FULL_KPIBANNER = ""
+    SEC_OV_KPIBANNER = ""
+
+SEC_FULL_A1 = f'''<div class="chart-section">
+  <h2>A1. ヘビーユーザー分解（実績 vs 計画）</h2>
+  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
+  <img src="chart3_kpi_trends.png" alt="Heavy User Trends">
+</div>''' if IS_MAIN else ""
+
+SEC_OV_A1 = f'''<div class="chart-section">
+  <h2>A1. ヘビーユーザー分解（実績 vs 計画）</h2>
+  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
+  <img src="chart_appendix1_kpi_trends.png" alt="Heavy User Trends">
+</div>''' if IS_MAIN else ""
+
+SEC_A2 = '''<div class="chart-section">
+  <h2>A2. ヘビーユーザー詳細（人数・検索回数・アクティブ日数）</h2>
+  <p class="def">【定義】上段: 過去28日間にD4+検索を10回以上行った医師数。中段: 同ユーザーの1人当たり平均検索回数。下段: 同ユーザーの1人当たり平均アクティブ日数（28日中何日使ったか）</p>
+  <img src="chart11b_s15_habitual.png" alt="S15">
+</div>''' if TRACTION_VARIANT != "login" else ""
+
+SEC_A3 = '''<div class="chart-section">
+  <h2>A3. ヘビーユーザー継続分析</h2>
+  <p class="def">【定義】上段: 今週のヘビーユーザーのうち、前週もヘビーだった人（継続）と今週新たにヘビーになった人（新規）の内訳。<br>下段: リテンション率＝前週もヘビーだった人 / <b>前週のヘビーユーザー総数</b>。前週のヘビーユーザーが翌週も残る割合を測る</p>
+  <img src="chart12d_heavy_continuity.png" alt="Heavy User Continuity">
+</div>''' if TRACTION_VARIANT != "login" else ""
+
+SEC_A4 = '''<div class="chart-section">
+  <h2>A4. ヘビーユーザー / MAU 比率</h2>
+  <p class="def">【定義】MAU（28日間D4+アクティブ医師）のうちヘビーユーザー（10回以上検索）が占める割合。<br>MAUの「質」を測る指標。MAU減少局面でも比率上昇なら、コアユーザーの深化が進んでいることを示す</p>
+  <img src="chart12c_heavy_mau_ratio.png" alt="Heavy/MAU Ratio">
+</div>''' if TRACTION_VARIANT != "login" else ""
+
+SEC_FULL_APPENDIX = f'''<hr style="margin:40px 0;border:none;border-top:3px solid #1a237e;">
+<h1 style="color:#1a237e;">Appendix</h1>
+
+<div class="chart-section">
+  <h2>App-1. 週次検索ボリューム（全検索・投資家向け目標）</h2>
+  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{APP_TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
+  <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume App">
+</div>
+
+<div class="kpi-banner" style="background: linear-gradient(135deg, #4a148c, #6a1b9a);">
+  <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
+  {_KGI_NUMBERS_HTML}
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
+</div>
+
+<div class="chart-section">
+  <h2>App-2. ヘビーユーザー分解（実績 vs 計画）</h2>
+  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
+  <img src="chart_appendix1_kpi_trends.png" alt="Heavy User Trends">
+</div>''' if IS_MAIN else ""
+
+# ── バリアント時の文言差し替え（mainは無変換） ──
+_VARIANT_REPL = []
+if TRACTION_VARIANT == "allsearch":
+    _VARIANT_REPL = [
+        ("このテーブルは他チャートと異なり <b>D4+フィルタを使わない</b>。登録医師の登録後すべての検索を対象とした暦月集計。",
+         "登録医師の登録後すべての検索を対象とした暦月集計（本ページの他チャートと同じく全検索ベース）。"),
+        ("D4+検索を1回以上行った", "検索を1回以上行った"),
+        ("D4+検索を10回以上行った", "検索を10回以上行った"),
+        ("当週初めてD4+検索した", "当週初めて検索した"),
+        ("初めてD4+検索した月", "初めて検索した月"),
+        ("D4+検索を行った", "検索を行った"),
+        ("D4+初検索日", "初検索日"),
+        ("D4+で当該週に1回以上検索した", "当該週に1回以上検索した"),
+        ("日別D4+検索者数", "日別検索者数"),
+        ("28日間D4+アクティブ医師", "28日間アクティブ医師"),
+        ("検索した医師（D4+）", "検索した医師"),
+        ("MAU（28日窓・D4+）", "MAU（28日窓・全検索）"),
+        ("平均DAU（日次アクティブ医師数・D4+）", "平均DAU（日次アクティブ医師数・全検索）"),
+    ]
+elif TRACTION_VARIANT == "login":
+    _VARIANT_REPL = [
+        ("このテーブルは他チャートと異なり <b>D4+フィルタを使わない</b>。登録医師の登録後すべての検索を対象とした暦月集計。",
+         "登録医師の登録後すべてのログインを対象とした暦月集計。"),
+        ("D4+で当該週に1回以上検索した医師数", "当該週に1回以上ログインした医師数"),
+        ("D4+検索を1回以上行った", "1回以上ログインした"),
+        ("当週初めてD4+検索した", "当週初めてログインした"),
+        ("初めてD4+検索した月", "初めてログインした月"),
+        ("D4+検索を行った医師数の7日間平均", "ログインした医師数の7日間平均"),
+        ("D4+初検索日", "初ログイン日"),
+        ("日別D4+検索者数", "日別ログイン者数"),
+        ("検索した医師（D4+）", "ログインした医師"),
+        ("MAU（28日窓・D4+）", "MAU（28日窓・ログイン）"),
+        ("平均DAU（日次アクティブ医師数・D4+）", "平均DAU（日次ログイン医師数）"),
+        ("各期間に1回以上検索した医師の割合", "各期間に1回以上ログインした医師の割合"),
+        ("当該期間に1回以上検索した医師数", "当該期間に1回以上ログインした医師数"),
+        ("当該期間に検索した医師数", "当該期間にログインした医師数"),
+        ("当該窓で検索した医師数", "当該窓でログインした医師数"),
+        ("1回以上検索した割合", "1回以上ログインした割合"),
+        ("3週以上で1回以上検索した", "3週以上で1回以上ログインした"),
+        ("1人当たり平均検索回数", "1人当たり平均ログイン回数"),
+        ("1回以上検索した登録医師", "1回以上ログインした登録医師"),
+        ("月間質問数（合計）", "月間ログイン数（合計）"),
+        ("月質問数/MAU", "月ログイン数/MAU"),
+        ("登録医師による検索数の合計", "登録医師によるログイン数の合計"),
+        ("アクティブ医師1人あたりの月間検索数", "アクティブ医師1人あたりの月間ログイン数"),
+        ("28日間に10回以上検索した", "28日間に10回以上ログインした"),
+        ("当該週の全ユーザーの総検索回数", "当該週の全ユーザーの総ログイン回数"),
+        ("週次検索ボリューム", "週次ログイン数"),
+        ("A. ヘビーユーザー（定着指標）", "A. 定着指標"),
+    ]
+
+
+def variantize_text(s):
+    """バリアント時のみ文言を差し替える（mainは無変換で完全一致を保つ）"""
+    if IS_MAIN:
+        return s
+    for _a, _b in _VARIANT_REPL:
+        s = s.replace(_a, _b)
+    return s
+
+
+def finalize_html(html_text, page):
+    """バリアント時のみ: 文言差し替え + タイトル/バナー/ナビ挿入。mainは無変換。page = "index" | "overview" """
+    if IS_MAIN:
+        return html_text
+    html_text = variantize_text(html_text)
+    html_text = html_text.replace("<title>Traction Dashboard —", f"<title>Traction Dashboard 参考版（{_VPAGE}） —", 1)
+    html_text = html_text.replace(
+        "<h1>Cubec トラクションダッシュボード</h1>",
+        f'<h1>Cubec トラクションダッシュボード<br><span style="font-size:19px;color:#f5773f;">参考: {_VPAGE}</span></h1>', 1)
+    _sub = f'<p class="subtitle">データ最終日: {DATA_END.strftime("%Y-%m-%d")} | 最終完全週: {disp_week_label}</p>'
+    _base = "overview" if page == "overview" else "index"
+    _links = (f'<a href="{_base}.html">本体（D4+）</a> ｜ '
+              f'<a href="{_base}_allsearch.html">全検索</a> ｜ '
+              f'<a href="{_base}_login.html">ログイン</a>')
+    _banner = (
+        '<div style="background:#fff3e0;border-left:4px solid #f5773f;border-radius:8px;'
+        'padding:14px 20px;margin:0 auto 24px;max-width:900px;font-size:13px;color:#5d4037;line-height:1.8;">'
+        f'<b>参考値（{_VPAGE}）</b>: 本ページは競合指標との比較のため、D4+スクリーニングを適用しない数字を表示しています。'
+        '当社の意思決定・計画管理はD4+定義の本体ダッシュボードを基準としており、本ページには計画線を表示していません。<br>'
+        f'ページ切替: {_links}'
+        '</div>')
+    html_text = html_text.replace(_sub, _sub + "\n" + _banner, 1)
+    if page == "overview":
+        html_text = html_text.replace('href="traction_weekly.csv"', f'href="traction_weekly_{TRACTION_VARIANT}.csv"', 1)
+    return html_text
+
 html = f'''<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -3188,58 +3452,21 @@ html = f'''<!DOCTYPE html>
 <h1>Cubec トラクションダッシュボード</h1>
 <p class="subtitle">データ最終日: {DATA_END.strftime("%Y-%m-%d")} | 最終完全週: {disp_week_label}</p>
 
-<div class="chart-section" style="background:#f8f9ff;border-left:4px solid #1a237e;margin-bottom:24px;">
-  <h2 style="color:#1a237e;">用語定義</h2>
-  <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
-    <b>D4+</b>: 登録から4日以上経過した状態。初期探索期間（登録直後の試用）を除外し、真の利用意思を持つユーザーのみを計測対象とするためのフィルタ。<br>
-    <b>WAU</b>（Weekly Active Users）: D4+で当該週に1回以上検索した医師数。<br>
-    <b>MAU</b>（Monthly Active Users）: 過去28日間にD4+検索を1回以上行った医師数。<br>
-    <b>DAU</b>（Daily Active Users）: 当日にD4+検索を1回以上行った医師数。「平均DAU」は週内7日間の平均。<br>
-    <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
-    <b>アクティベーション</b>: 医師がD4+で初めて検索を行うこと。アクティベーション率 = 累計アクティベート済み医師数 / 累計登録医師数。<br>
-    <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
-    <b>リテンション</b>: ある期間に再びアクティブだったユーザーの割合。分母はコホート全員。<br>
-    <b>ヘビーユーザー</b>: 28日間に10回以上検索した医師。習慣的利用の指標。<br>
-  </p>
-</div>
+{TERM_DEF_BLOCK}
 
-<div class="chart-section">
-  <h2>1. 週次検索ボリューム（全検索）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師{TARGET_REG:,}人計画に連動した検索ボリューム目標（{TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
-  <img src="chart14b_weekly_search_volume_all.png" alt="Weekly Search Volume">
-</div>
+{SEC_FULL_SEARCHVOL}
 
-<div class="kpi-banner">
-  <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
-  <div class="numbers"><span class="kgi-val">{s15_count.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}</span> = {reg_vals[-1]} × {mau_rate_vals[-1]:.1f}% × {s15_pct_mau.get(exp_chart_weeks[-1] if exp_chart_weeks else common_weeks[-1], 0)}%</div>
-  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{TARGET_HEAVY}</span> = {TARGET_REG:,} × {TARGET_MAU_RATE}% × {TARGET_HEAVY_RATE}%</div>
-</div>
+{SEC_FULL_KPIBANNER}
 
 <h2 style="color:#1a237e;border-bottom:2px solid #f5773f;padding-bottom:6px;margin:32px 0 16px;">A. ヘビーユーザー（定着指標）</h2>
 
-<div class="chart-section">
-  <h2>A1. ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
-  <img src="chart3_kpi_trends.png" alt="Heavy User Trends">
-</div>
+{SEC_FULL_A1}
 
-<div class="chart-section">
-  <h2>A2. ヘビーユーザー詳細（人数・検索回数・アクティブ日数）</h2>
-  <p class="def">【定義】上段: 過去28日間にD4+検索を10回以上行った医師数。中段: 同ユーザーの1人当たり平均検索回数。下段: 同ユーザーの1人当たり平均アクティブ日数（28日中何日使ったか）</p>
-  <img src="chart11b_s15_habitual.png" alt="S15">
-</div>
+{SEC_A2}
 
-<div class="chart-section">
-  <h2>A3. ヘビーユーザー継続分析</h2>
-  <p class="def">【定義】上段: 今週のヘビーユーザーのうち、前週もヘビーだった人（継続）と今週新たにヘビーになった人（新規）の内訳。<br>下段: リテンション率＝前週もヘビーだった人 / <b>前週のヘビーユーザー総数</b>。前週のヘビーユーザーが翌週も残る割合を測る</p>
-  <img src="chart12d_heavy_continuity.png" alt="Heavy User Continuity">
-</div>
+{SEC_A3}
 
-<div class="chart-section">
-  <h2>A4. ヘビーユーザー / MAU 比率</h2>
-  <p class="def">【定義】MAU（28日間D4+アクティブ医師）のうちヘビーユーザー（10回以上検索）が占める割合。<br>MAUの「質」を測る指標。MAU減少局面でも比率上昇なら、コアユーザーの深化が進んでいることを示す</p>
-  <img src="chart12c_heavy_mau_ratio.png" alt="Heavy/MAU Ratio">
-</div>
+{SEC_A4}
 
 <div class="chart-section">
   <h2>A5. 習慣化ユーザー（人数・利用深度）</h2>
@@ -3349,26 +3576,7 @@ html = f'''<!DOCTYPE html>
   </table>
 </div>
 
-<hr style="margin:40px 0;border:none;border-top:3px solid #1a237e;">
-<h1 style="color:#1a237e;">Appendix</h1>
-
-<div class="chart-section">
-  <h2>App-1. 週次検索ボリューム（全検索・投資家向け目標）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{APP_TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
-  <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume App">
-</div>
-
-<div class="kpi-banner" style="background: linear-gradient(135deg, #4a148c, #6a1b9a);">
-  <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
-  <div class="numbers"><span class="kgi-val">{s15_count.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}</span> = {reg_vals[-1]} × {mau_rate_vals[-1]:.1f}% × {s15_pct_mau.get(exp_chart_weeks[-1] if exp_chart_weeks else common_weeks[-1], 0)}%</div>
-  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
-</div>
-
-<div class="chart-section">
-  <h2>App-2. ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
-  <img src="chart_appendix1_kpi_trends.png" alt="Heavy User Trends">
-</div>
+{SEC_FULL_APPENDIX}
 
 <div class="footer">Cubec トラクションダッシュボード | 生成日: {DATA_END.strftime("%Y-%m-%d")}</div>
 
@@ -3377,7 +3585,7 @@ html = f'''<!DOCTYPE html>
 '''
 
 with open(OUTPUT_DIR / "dashboard.html", "w", encoding="utf-8") as f:
-    f.write(html)
+    f.write(finalize_html(html, "index"))
 print("[OK] dashboard.html -> output/dashboard.html", flush=True)
 
 # ══════════════════════════════════════════════
@@ -3423,6 +3631,9 @@ for i, w in enumerate(common_weeks):
         _c14b_search_users.get(w, ""),
     ))
 import csv as _csv
+# バリアント時は列名・定義行の文言を差し替える（mainは無変換）
+_csv_rows[0] = tuple(variantize_text(str(_x)) for _x in _csv_rows[0])
+_csv_rows[1] = tuple(variantize_text(str(_x)) for _x in _csv_rows[1])
 with open(OUTPUT_DIR / "traction_weekly.csv", "w", encoding="utf-8-sig", newline="") as _f:
     _csv.writer(_f).writerows(_csv_rows)
 print(f"[OK] traction_weekly.csv -> output/traction_weekly.csv ({len(_csv_rows)-1} rows)", flush=True)
@@ -3483,58 +3694,21 @@ html_overview = f'''<!DOCTYPE html>
   <div style="color:#888;font-size:11px;margin-top:6px;">登録医師数 / WAU / MAU / ヘビーユーザー / 週次検索ボリューム 等（週次時系列）</div>
 </div>
 
-<div class="chart-section" style="background:#f8f9ff;border-left:4px solid #1a237e;margin-bottom:24px;">
-  <h2 style="color:#1a237e;">用語定義</h2>
-  <p class="def" style="font-size:12px;color:#555;line-height:1.8;">
-    <b>D4+</b>: 登録から4日以上経過した状態。初期探索期間（登録直後の試用）を除外し、真の利用意思を持つユーザーのみを計測対象とするためのフィルタ。<br>
-    <b>WAU</b>（Weekly Active Users）: D4+で当該週に1回以上検索した医師数。<br>
-    <b>MAU</b>（Monthly Active Users）: 過去28日間にD4+検索を1回以上行った医師数。<br>
-    <b>DAU</b>（Daily Active Users）: 当日にD4+検索を1回以上行った医師数。「平均DAU」は週内7日間の平均。<br>
-    <b>WAU率</b>: WAU / 累計登録医師数。登録した医師のうち、週次でアクティブな割合。<br>
-    <b>アクティベーション</b>: 医師がD4+で初めて検索を行うこと。アクティベーション率 = 累計アクティベート済み医師数 / 累計登録医師数。<br>
-    <b>コホート</b>: 登録月またはアクティベーション月でグループ化したユーザー群。チャートごとに基準が異なる場合は個別に記載。<br>
-    <b>リテンション</b>: ある期間に再びアクティブだったユーザーの割合。分母はコホート全員。<br>
-    <b>ヘビーユーザー</b>: 28日間に10回以上検索した医師。習慣的利用の指標。<br>
-  </p>
-</div>
+{TERM_DEF_BLOCK}
 
-<div class="chart-section">
-  <h2>1. 週次検索ボリューム（全検索）</h2>
-  <p class="def">【定義】棒グラフ: 当該週の全ユーザーの総検索回数（緑）、内側の濃緑は月〜金 8:00-18:00 JST（祝休日は考慮せず、単純に曜日と時刻のみで判定）の検索回数。折れ線（右軸）: ユニークユーザー数。点線: 登録医師2,827人計画に連動した検索ボリューム目標（{APP_TARGET_WEEKLY_SEARCH:,}回/週）。ティール点線: 業務時間内検索の計画＝総検索計画の60%（{APP_TARGET_WEEKLY_SEARCH*0.6:,.0f}回/週）</p>
-  <img src="chart14b_weekly_search_volume_app.png" alt="Weekly Search Volume">
-</div>
+{SEC_OV_SEARCHVOL}
 
-<div class="kpi-banner">
-  <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
-  <div class="numbers"><span class="kgi-val">{s15_count.get(exp_chart_weeks[-1], 0) if exp_chart_weeks else 0}</span> = {reg_vals[-1]} × {mau_rate_vals[-1]:.1f}% × {s15_pct_mau.get(exp_chart_weeks[-1] if exp_chart_weeks else common_weeks[-1], 0)}%</div>
-  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
-</div>
+{SEC_OV_KPIBANNER}
 
 <h2 style="color:#1a237e;border-bottom:2px solid #f5773f;padding-bottom:6px;margin:32px 0 16px;">A. ヘビーユーザー（定着指標）</h2>
 
-<div class="chart-section">
-  <h2>A1. ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
-  <img src="chart_appendix1_kpi_trends.png" alt="Heavy User Trends">
-</div>
+{SEC_OV_A1}
 
-<div class="chart-section">
-  <h2>A2. ヘビーユーザー詳細（人数・検索回数・アクティブ日数）</h2>
-  <p class="def">【定義】上段: 過去28日間にD4+検索を10回以上行った医師数。中段: 同ユーザーの1人当たり平均検索回数。下段: 同ユーザーの1人当たり平均アクティブ日数（28日中何日使ったか）</p>
-  <img src="chart11b_s15_habitual.png" alt="S15">
-</div>
+{SEC_A2}
 
-<div class="chart-section">
-  <h2>A3. ヘビーユーザー継続分析</h2>
-  <p class="def">【定義】上段: 今週のヘビーユーザーのうち、前週もヘビーだった人（継続）と今週新たにヘビーになった人（新規）の内訳。<br>下段: リテンション率＝前週もヘビーだった人 / <b>前週のヘビーユーザー総数</b>。前週のヘビーユーザーが翌週も残る割合を測る</p>
-  <img src="chart12d_heavy_continuity.png" alt="Heavy User Continuity">
-</div>
+{SEC_A3}
 
-<div class="chart-section">
-  <h2>A4. ヘビーユーザー / MAU 比率</h2>
-  <p class="def">【定義】MAU（28日間D4+アクティブ医師）のうちヘビーユーザー（10回以上検索）が占める割合。<br>MAUの「質」を測る指標。MAU減少局面でも比率上昇なら、コアユーザーの深化が進んでいることを示す</p>
-  <img src="chart12c_heavy_mau_ratio.png" alt="Heavy/MAU Ratio">
-</div>
+{SEC_A4}
 
 <div class="chart-section">
   <h2>A5. 習慣化ユーザー（人数・利用深度）</h2>
@@ -3633,7 +3807,7 @@ html_overview = f'''<!DOCTYPE html>
 '''
 
 with open(OUTPUT_DIR / "dashboard_overview.html", "w", encoding="utf-8") as f:
-    f.write(html_overview)
+    f.write(finalize_html(html_overview, "overview"))
 print("[OK] dashboard_overview.html -> output/dashboard_overview.html", flush=True)
 
 print(f"\n  Output:")

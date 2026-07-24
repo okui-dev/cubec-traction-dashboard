@@ -35,9 +35,25 @@ jobs:
           mkdir -p dashboard/data dashboard/output
           python scripts/fetch_csv.py
 
-      - name: Run traction_lite.py
+      - name: Run traction_lite.py (main / D4+)
         env:
           DATA_END_OVERRIDE: ${{ env.DATA_END_DATE }}
+        run: |
+          cd dashboard
+          python traction_lite.py
+
+      - name: Run traction_lite.py (allsearch reference)
+        env:
+          DATA_END_OVERRIDE: ${{ env.DATA_END_DATE }}
+          TRACTION_VARIANT: allsearch
+        run: |
+          cd dashboard
+          python traction_lite.py
+
+      - name: Run traction_lite.py (login reference)
+        env:
+          DATA_END_OVERRIDE: ${{ env.DATA_END_DATE }}
+          TRACTION_VARIANT: login
         run: |
           cd dashboard
           python traction_lite.py
@@ -50,5 +66,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html overview.html traction_weekly.csv
+          git add index.html overview.html traction_weekly.csv \
+                  index_allsearch.html overview_allsearch.html traction_weekly_allsearch.csv \
+                  index_login.html overview_login.html traction_weekly_login.csv
           git diff --cached --quiet || (git commit -m "Auto-update dashboard $(date -u +%Y-%m-%d)" && git push)

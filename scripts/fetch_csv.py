@@ -51,6 +51,16 @@ with open(out2, "w", newline="", encoding="utf-8-sig") as f:
         w.writerow([row[i] if i < len(row) else "" for i in keep_idx2])
 print(f"ChatMessagePair: {len(all_data2)-1} rows -> {out2}")
 
+# --- LoginHistory (2026-07-24追加: ログインベース参考版用。列=id/__typename/createdAt/updatedAt/userId、PIIなし) ---
+ws3 = sh.worksheet("LoginHistory")
+all_data3 = ws3.get_all_values()
+out3 = os.path.join(DATA_DIR, f"raw_kpi - LoginHistory{today_mmdd}.csv")
+with open(out3, "w", newline="", encoding="utf-8-sig") as f:
+    w = csv.writer(f)
+    for row in all_data3:
+        w.writerow(row)
+print(f"LoginHistory: {len(all_data3)-1} rows -> {out3}")
+
 # Export DATA_END_DATE for next step
 with open(os.environ["GITHUB_ENV"], "a") as env_file:
     env_file.write(f"DATA_END_DATE={data_end}\n")

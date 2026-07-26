@@ -3401,19 +3401,6 @@ def finalize_html(html_text, page):
     html_text = html_text.replace(
         "<h1>Cubec トラクションダッシュボード</h1>",
         f'<h1>Cubec トラクションダッシュボード<br><span style="font-size:19px;color:#f5773f;">参考: {_VPAGE}</span></h1>', 1)
-    _sub = f'<p class="subtitle">データ最終日: {DATA_END.strftime("%Y-%m-%d")} | 最終完全週: {disp_week_label}</p>'
-    _base = "overview" if page == "overview" else "index"
-    _links = (f'<a href="{_base}.html">本体（D4+）</a> ｜ '
-              f'<a href="{_base}_allsearch.html">全検索</a> ｜ '
-              f'<a href="{_base}_login.html">ログイン/検索</a>')
-    _banner = (
-        '<div style="background:#fff3e0;border-left:4px solid #f5773f;border-radius:8px;'
-        'padding:14px 20px;margin:0 auto 24px;max-width:900px;font-size:13px;color:#5d4037;line-height:1.8;">'
-        f'<b>参考値（{_VPAGE}）</b>: 本ページは競合指標との比較のため、D4+スクリーニングを適用しない数字を表示しています。'
-        '当社の意思決定・計画管理はD4+定義の本体ダッシュボードを基準としており、本ページには計画線を表示していません。<br>'
-        f'ページ切替: {_links}'
-        '</div>')
-    html_text = html_text.replace(_sub, _sub + "\n" + _banner, 1)
     if page == "overview":
         html_text = html_text.replace('href="traction_weekly.csv"', f'href="traction_weekly_{TRACTION_VARIANT}.csv"', 1)
     return html_text

@@ -2538,12 +2538,17 @@ _C8A_TITLE = {"main": "14. MAU（28日窓・D4+）",
 _C8C_TITLE = {"main": "16. 平均DAU（日次D4+アクティブ医師数）",
               "allsearch": "16. 平均DAU（日次アクティブ医師数・全検索）",
               "login": "16. 平均DAU（日次利用医師数）"}[TRACTION_VARIANT]
+_C8E_TITLE = {"main": "18. WAU（週次・D4+）",
+              "allsearch": "18. WAU（週次・全検索）",
+              "login": "18. WAU（週次・ログイン/検索）"}[TRACTION_VARIANT]
 
 for _c8_name, _c8_vals, _c8_color, _c8_ylabel, _c8_title, _c8_fmt, _c8_fname in [
     ("MAU", mau_vals, "#9C27B0", "MAU（人）", _C8A_TITLE, "d", "chart8a_mau.png"),
     ("MAU Rate", mau_rate_vals, "#E91E63", "MAU率（%）", "15. MAU率（MAU / 累計登録医師数）", ".1f", "chart8b_mau_rate.png"),
     ("Avg DAU", avg_dau_vals, "#00BCD4", "平均DAU（人）", _C8C_TITLE, ".1f", "chart8c_avg_dau.png"),
     ("DAU Rate", dau_rate_vals, "#FF5722", "DAU率（%）", "17. DAU率（平均DAU / 累計登録医師数）", ".1f", "chart8d_dau_rate.png"),
+    ("WAU", wau_vals, "#2196F3", "WAU（人）", _C8E_TITLE, "d", "chart8e_wau.png"),
+    ("WAU Rate", rate_vals, "#FF9800", "WAU率（%）", "19. WAU率（WAU / 累計登録医師数）", ".1f", "chart8f_wau_rate.png"),
 ]:
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.plot(common_weeks, _c8_vals, marker="o", ms=5, lw=2, color=_c8_color)
@@ -3347,6 +3352,7 @@ if TRACTION_VARIANT == "allsearch":
         ("28日間D4+アクティブ医師", "28日間アクティブ医師"),
         ("検索した医師（D4+）", "検索した医師"),
         ("MAU（28日窓・D4+）", "MAU（28日窓・全検索）"),
+        ("WAU（週次アクティブ医師数・D4+）", "WAU（週次アクティブ医師数・全検索）"),
         ("平均DAU（日次アクティブ医師数・D4+）", "平均DAU（日次アクティブ医師数・全検索）"),
     ]
 elif TRACTION_VARIANT == "login":
@@ -3362,6 +3368,7 @@ elif TRACTION_VARIANT == "login":
         ("日別D4+検索者数", "日別利用者数"),
         ("検索した医師（D4+）", "利用した医師"),
         ("MAU（28日窓・D4+）", "MAU（28日窓・ログイン/検索）"),
+        ("WAU（週次アクティブ医師数・D4+）", "WAU（週次アクティブ医師数・ログイン/検索）"),
         ("平均DAU（日次アクティブ医師数・D4+）", "平均DAU（日次利用医師数）"),
         ("各期間に1回以上検索した医師の割合", "各期間に1回以上ログインまたは検索した医師の割合"),
         ("当該期間に1回以上検索した医師数", "当該期間に1回以上ログインまたは検索した医師数"),
@@ -3530,31 +3537,43 @@ html = f'''<!DOCTYPE html>
 </div>
 
 <div class="chart-section">
-  <h2>D3. MAU（28日窓・D4+）</h2>
+  <h2>D3. WAU（週次アクティブ医師数・D4+）</h2>
+  <p class="def">【定義】当該週にD4+検索を1回以上行った医師数。週次のアクティブ規模を示す</p>
+  <img src="chart8e_wau.png" alt="WAU">
+</div>
+
+<div class="chart-section">
+  <h2>D4. WAU率（WAU / 累計登録医師数）</h2>
+  <p class="def">【定義】分子=WAU / 分母=累計登録医師数。登録した医師のうち、週次でアクティブな割合</p>
+  <img src="chart8f_wau_rate.png" alt="WAU Rate">
+</div>
+
+<div class="chart-section">
+  <h2>D5. MAU（28日窓・D4+）</h2>
   <p class="def">【定義】過去28日間にD4+検索を1回以上行った医師数。WAUより長い観察窓で利用者の裾野を捉える</p>
   <img src="chart8a_mau.png" alt="MAU">
 </div>
 
 <div class="chart-section">
-  <h2>D4. MAU率（MAU / 累計登録医師数）</h2>
+  <h2>D6. MAU率（MAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=MAU / 分母=累計登録医師数。月次で見た利用率</p>
   <img src="chart8b_mau_rate.png" alt="MAU Rate">
 </div>
 
 <div class="chart-section">
-  <h2>D5. 平均DAU（日次アクティブ医師数・D4+）</h2>
+  <h2>D7. 平均DAU（日次アクティブ医師数・D4+）</h2>
   <p class="def">【定義】当該週の各日にD4+検索を行った医師数の7日間平均。日次の利用規模を示す</p>
   <img src="chart8c_avg_dau.png" alt="Avg DAU">
 </div>
 
 <div class="chart-section">
-  <h2>D6. DAU率（平均DAU / 累計登録医師数）</h2>
+  <h2>D8. DAU率（平均DAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=平均DAU / 分母=累計登録医師数。日次ベースでの利用率</p>
   <img src="chart8d_dau_rate.png" alt="DAU Rate">
 </div>
 
 <div class="chart-section">
-  <h2>D7. 月次サマリー（暦月ベース・登録医師の全検索）</h2>
+  <h2>D9. 月次サマリー（暦月ベース・登録医師の全検索）</h2>
   <p class="def">【定義】このテーブルは他チャートと異なり <b>D4+フィルタを使わない</b>。登録医師の登録後すべての検索を対象とした暦月集計。<br>
     <b>累計登録医師数</b>: 月末時点で医師登録（doctorINfo strict）を完了している医師の累計人数<br>
     <b>MAU</b>: 当月暦月内（1日〜末日）に1回以上検索した登録医師のユニーク数<br>
@@ -3772,25 +3791,37 @@ html_overview = f'''<!DOCTYPE html>
 </div>
 
 <div class="chart-section">
-  <h2>D3. MAU（28日窓・D4+）</h2>
+  <h2>D3. WAU（週次アクティブ医師数・D4+）</h2>
+  <p class="def">【定義】当該週にD4+検索を1回以上行った医師数。週次のアクティブ規模を示す</p>
+  <img src="chart8e_wau.png" alt="WAU">
+</div>
+
+<div class="chart-section">
+  <h2>D4. WAU率（WAU / 累計登録医師数）</h2>
+  <p class="def">【定義】分子=WAU / 分母=累計登録医師数。登録した医師のうち、週次でアクティブな割合</p>
+  <img src="chart8f_wau_rate.png" alt="WAU Rate">
+</div>
+
+<div class="chart-section">
+  <h2>D5. MAU（28日窓・D4+）</h2>
   <p class="def">【定義】過去28日間にD4+検索を1回以上行った医師数。WAUより長い観察窓で利用者の裾野を捉える</p>
   <img src="chart8a_mau.png" alt="MAU">
 </div>
 
 <div class="chart-section">
-  <h2>D4. MAU率（MAU / 累計登録医師数）</h2>
+  <h2>D6. MAU率（MAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=MAU / 分母=累計登録医師数。月次で見た利用率</p>
   <img src="chart8b_mau_rate.png" alt="MAU Rate">
 </div>
 
 <div class="chart-section">
-  <h2>D5. 平均DAU（日次アクティブ医師数・D4+）</h2>
+  <h2>D7. 平均DAU（日次アクティブ医師数・D4+）</h2>
   <p class="def">【定義】当該週の各日にD4+検索を行った医師数の7日間平均。日次の利用規模を示す</p>
   <img src="chart8c_avg_dau.png" alt="Avg DAU">
 </div>
 
 <div class="chart-section">
-  <h2>D6. DAU率（平均DAU / 累計登録医師数）</h2>
+  <h2>D8. DAU率（平均DAU / 累計登録医師数）</h2>
   <p class="def">【定義】分子=平均DAU / 分母=累計登録医師数。日次ベースでの利用率</p>
   <img src="chart8d_dau_rate.png" alt="DAU Rate">
 </div>

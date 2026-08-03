@@ -128,23 +128,23 @@ ACT_USERID_COL = _act_cols.get("userId", 4)
 LOG_START = datetime(2025, 5, 31)
 MILLE_START = datetime(2025, 11, 1)
 
-# Targets (2026-07 end — 事業計画v3ベース 2026-07-02改定)
+# Targets (2026-08 end — 事業計画v3ベース 2026-08-03改定)
 # Heavy=CEO確定(6月末100→同傾きで延伸), Reg=定量事業計画v3, 他=実績比率から導出
-TARGET_DATE = datetime(2026, 7, 26)  # 7月最終日曜
-TARGET_WAU = 234
-TARGET_REG = 1497
-TARGET_WAU_RATE = 15.7  # percent
+TARGET_DATE = datetime(2026, 8, 30)  # 8月最終日曜
+TARGET_WAU = 297
+TARGET_REG = 1877
+TARGET_WAU_RATE = 15.8  # percent
 
 # Heavy User (KGI) targets
-TARGET_HEAVY = 118
-TARGET_MAU_RATE = 27.0   # percent (事業計画v3)
-TARGET_HEAVY_RATE = 29.2  # percent (heavy / MAU, derived)
+TARGET_HEAVY = 141
+TARGET_MAU_RATE = 27.2   # percent (事業計画v3)
+TARGET_HEAVY_RATE = 27.6  # percent (heavy / MAU, derived)
 
 # Appendix: Pre-A minimum scenario → Main統合 (事業計画v3 = 1シナリオ)
-APP_TARGET_HEAVY = 118
-APP_TARGET_REG = 1497
-APP_TARGET_MAU_RATE = 27.0
-APP_TARGET_HEAVY_RATE = 29.2
+APP_TARGET_HEAVY = 141
+APP_TARGET_REG = 1877
+APP_TARGET_MAU_RATE = 27.2
+APP_TARGET_HEAVY_RATE = 27.6
 
 # ── Weekly Search Volume targets (事業計画v3 月間質問数 / 4.33) ──
 SEARCH_PLAN_MILESTONES = [
@@ -154,8 +154,9 @@ SEARCH_PLAN_MILESTONES = [
     (datetime(2026, 5, 31),  770),   # 3336 / 4.33
     (datetime(2026, 6, 28),  907),   # 3929 / 4.33
     (datetime(2026, 7, 26), 1155),   # 5003 / 4.33
+    (datetime(2026, 8, 30), 1510),   # 6537.37 / 4.33
 ]
-TARGET_WEEKLY_SEARCH = 1155
+TARGET_WEEKLY_SEARCH = 1510
 
 # 投資家向け → Main統合
 APP_SEARCH_PLAN_MILESTONES = [
@@ -165,12 +166,13 @@ APP_SEARCH_PLAN_MILESTONES = [
     (datetime(2026, 5, 31),  770),
     (datetime(2026, 6, 28),  907),
     (datetime(2026, 7, 26), 1155),
+    (datetime(2026, 8, 30), 1510),
 ]
-APP_TARGET_WEEKLY_SEARCH = 1155
+APP_TARGET_WEEKLY_SEARCH = 1510
 
-# ── Heavy User plan milestones (2026-07-02改定: Heavy=CEO確定, MAU率=事業計画v3) ──
+# ── Heavy User plan milestones (2026-08-03改定: Heavy=CEO確定, MAU率=事業計画v3) ──
 # (date, heavy_count, mau_rate%, heavy_rate%)
-# Heavy: 3/1実績22→6/28目標100(確定)→7/26=118(同傾き+0.655/日×28日)
+# Heavy: 3/1実績22→6/28目標100(確定)→8/30=141(同傾き+0.655/日×63日)
 # mau_rate: 事業計画v3の月次MAU率
 # heavy_rate: heavy / (reg × mau_rate) で導出
 HEAVY_PLAN_MILESTONES = [
@@ -180,6 +182,7 @@ HEAVY_PLAN_MILESTONES = [
     (datetime(2026, 5, 31),  83,  23.1, 35.3),
     (datetime(2026, 6, 28), 100,  26.7, 30.8),
     (datetime(2026, 7, 26), 118,  27.0, 29.2),
+    (datetime(2026, 8, 30), 141,  27.2, 27.6),
 ]
 # Appendix → Main統合
 APP_HEAVY_PLAN_MILESTONES = [
@@ -189,9 +192,10 @@ APP_HEAVY_PLAN_MILESTONES = [
     (datetime(2026, 5, 31),  83,  23.1, 35.3),
     (datetime(2026, 6, 28), 100,  26.7, 30.8),
     (datetime(2026, 7, 26), 118,  27.0, 29.2),
+    (datetime(2026, 8, 30), 141,  27.2, 27.6),
 ]
 
-# Plan milestones (事業計画v3ベース 2026-07-02改定)
+# Plan milestones (事業計画v3ベース 2026-08-03改定)
 # (date, reg, wau_rate%, wau)
 # reg: 事業計画v3, wau_rate: MAU率×WAU/MAU実績比(0.581), wau: reg×wau_rate
 PLAN_MILESTONES = [
@@ -201,12 +205,13 @@ PLAN_MILESTONES = [
     (datetime(2026, 5, 31), 1017, 13.4, 136),
     (datetime(2026, 6, 28), 1217, 15.5, 189),
     (datetime(2026, 7, 26), 1497, 15.7, 234),
+    (datetime(2026, 8, 30), 1877, 15.8, 297),
 ]
 
 # Plan B → Main統合
-TARGET_WAU_B = 234
-TARGET_REG_B = 1497
-TARGET_WAU_RATE_B = 15.7
+TARGET_WAU_B = 297
+TARGET_REG_B = 1877
+TARGET_WAU_RATE_B = 15.8
 PLAN_B_MILESTONES = [
     (datetime(2026, 3, 1),   676, 14.5,  98),
     (datetime(2026, 3, 31),  764, 11.9,  91),
@@ -214,6 +219,7 @@ PLAN_B_MILESTONES = [
     (datetime(2026, 5, 31), 1017, 13.4, 136),
     (datetime(2026, 6, 28), 1217, 15.5, 189),
     (datetime(2026, 7, 26), 1497, 15.7, 234),
+    (datetime(2026, 8, 30), 1877, 15.8, 297),
 ]
 
 def interpolate_plan_weekly(milestones):
@@ -3267,12 +3273,12 @@ if IS_MAIN:
     SEC_FULL_KPIBANNER = f'''<div class="kpi-banner">
   <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
   {_KGI_NUMBERS_HTML}
-  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{TARGET_HEAVY}</span> = {TARGET_REG:,} × {TARGET_MAU_RATE}% × {TARGET_HEAVY_RATE}%</div>
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（8月末）: <span style="font-weight:bold;">{TARGET_HEAVY}</span> = {TARGET_REG:,} × {TARGET_MAU_RATE}% × {TARGET_HEAVY_RATE}%</div>
 </div>'''
     SEC_OV_KPIBANNER = f'''<div class="kpi-banner">
   <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
   {_KGI_NUMBERS_HTML}
-  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（8月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
 </div>'''
 elif TRACTION_VARIANT == "allsearch":
     SEC_FULL_KPIBANNER = f'''<div class="kpi-banner">
@@ -3286,13 +3292,13 @@ else:  # login: ヘビーユーザー系は非表示（検索回数ベースの�
 
 SEC_FULL_A1 = f'''<div class="chart-section">
   <h2>A1. ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
+  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（8月末）: ヘビー{TARGET_HEAVY} = 登録{TARGET_REG:,} × MAU率{TARGET_MAU_RATE}% × ヘビー化率{TARGET_HEAVY_RATE}%</p>
   <img src="chart3_kpi_trends.png" alt="Heavy User Trends">
 </div>''' if IS_MAIN else ""
 
 SEC_OV_A1 = f'''<div class="chart-section">
   <h2>A1. ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
+  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（8月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
   <img src="chart_appendix1_kpi_trends.png" alt="Heavy User Trends">
 </div>''' if IS_MAIN else ""
 
@@ -3326,12 +3332,12 @@ SEC_FULL_APPENDIX = f'''<hr style="margin:40px 0;border:none;border-top:3px soli
 <div class="kpi-banner" style="background: linear-gradient(135deg, #4a148c, #6a1b9a);">
   <div class="formula">ヘビーユーザー = 登録医師数 × MAU率 × ヘビー化率</div>
   {_KGI_NUMBERS_HTML}
-  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（7月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
+  <div style="font-size:13px;opacity:0.7;margin-top:8px;">目標（8月末）: <span style="font-weight:bold;">{APP_TARGET_HEAVY}</span> = {APP_TARGET_REG:,} × {APP_TARGET_MAU_RATE}% × {APP_TARGET_HEAVY_RATE}%</div>
 </div>
 
 <div class="chart-section">
   <h2>App-2. ヘビーユーザー分解（実績 vs 計画）</h2>
-  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（7月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
+  <p class="def">1段目: ヘビーユーザー数。2段目: 登録医師数。3段目: メール登録数（参考）。4段目: MAU率。5段目: ヘビー化率。点線 = 計画線<br>目標（8月末）: ヘビー{APP_TARGET_HEAVY} = 登録{APP_TARGET_REG:,} × MAU率{APP_TARGET_MAU_RATE}% × ヘビー化率{APP_TARGET_HEAVY_RATE}%</p>
   <img src="chart_appendix1_kpi_trends.png" alt="Heavy User Trends">
 </div>''' if IS_MAIN else ""
 

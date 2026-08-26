@@ -93,6 +93,14 @@ _act_cols = detect_columns(ACTIVITY_CSV)
 USER_ID_COL = _user_cols.get("id", 0)
 USER_CREATED_COL = _user_cols.get("createdAt", 2)
 USER_ROLE_COL = _user_cols.get("role", 5)
+# Rows created after 2026-08-19 have an empty "role" cell; "role_fixed" carries the value instead.
+USER_ROLE_FIXED_COL = _user_cols.get("role_fixed")
+
+def row_role(row):
+    r = row[USER_ROLE_COL] if len(row) > USER_ROLE_COL else ""
+    if r == "" and USER_ROLE_FIXED_COL is not None and len(row) > USER_ROLE_FIXED_COL:
+        r = row[USER_ROLE_FIXED_COL]
+    return r
 # ── Doctor filter column detection ──
 # CORRECT column: "doctorINfo名前無し or doctorINfoにIDなしで0" (strict: name+ID both present = 1)
 # WRONG column:   "doctorIInfo" (loose flag — includes incomplete registrations)
@@ -371,7 +379,7 @@ with open(USER_CSV, encoding=CSV_ENCODING, newline="") as f:
     next(reader)  # skip header
     _deemed_doctor_count = 0
     for row in reader:
-        if row[USER_ROLE_COL] != "user":
+        if row_role(row) != "user":
             continue
         # Doctor filter: doctorInfo == 1 OR Invitation >= 1 (deemed doctor)
         if USER_DOCTOR_COL is not None:
@@ -412,7 +420,7 @@ with open(USER_CSV, encoding=CSV_ENCODING, newline="") as f:
     reader = csv.reader(f)
     next(reader)
     for row in reader:
-        if row[USER_ROLE_COL] != "user":
+        if row_role(row) != "user":
             continue
         email_reg[row[USER_ID_COL]] = parse_date(row[USER_CREATED_COL])
 

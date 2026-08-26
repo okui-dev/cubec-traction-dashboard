@@ -3080,7 +3080,7 @@ if exp_chart_weeks:
     print(f"{'S12: Top10% Concentration':<40} {s12_top10_share.get(lw, 0):>9.1f}% {'query share'}")
 
 
-MAINTENANCE_NOTICE = True  # ← DBメンテナンス終了時に False にするとアラートが消える
+MAINTENANCE_NOTICE = False  # ← DBメンテナンス終了時に False にするとアラートが消える
 MAINT_ALERT_HTML = (
     '<div style="background:#fff3e0;border:2px solid #f5773f;border-radius:10px;'
     'padding:14px 22px;margin:0 auto 24px;max-width:960px;text-align:center;'

@@ -3,7 +3,26 @@ import gspread
 import csv
 import os
 import json
+import time
 from datetime import datetime, timezone, timedelta
+
+# 2026-08-27の日次実行がSheets APIの一時エラー(409 "The operation was aborted")1発で
+# 丸1日停止したため、一時エラーはリトライで自己回復させる
+RETRY_STATUS = {409, 429, 500, 502, 503, 504}
+RETRY_ATTEMPTS = 3
+
+
+def fetch_all_values(spreadsheet, tab_name):
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            return spreadsheet.worksheet(tab_name).get_all_values()
+        except gspread.exceptions.APIError as e:
+            status = e.response.status_code if e.response is not None else None
+            if status not in RETRY_STATUS or attempt == RETRY_ATTEMPTS:
+                raise
+            wait = 30 * (2 ** (attempt - 1))  # 30s, 60s
+            print(f"{tab_name}: APIError {status} (attempt {attempt}/{RETRY_ATTEMPTS}), retrying in {wait}s")
+            time.sleep(wait)
 
 import base64
 SA_JSON_B64 = os.environ["SERVICE_ACCOUNT_JSON"]
@@ -28,8 +47,7 @@ gc = gspread.service_account_from_dict(sa_info)
 sh = gc.open_by_key(SHEET_ID)
 
 # --- User ---
-ws = sh.worksheet("User")
-all_data = ws.get_all_values()
+all_data = fetch_all_values(sh, "User")
 header = all_data[0]
 keep_idx = [i for i, h in enumerate(header) if h not in USER_EXCLUDE]
 out1 = os.path.join(DATA_DIR, f"raw_kpi - User{today_mmdd}.csv")
@@ -40,8 +58,7 @@ with open(out1, "w", newline="", encoding="utf-8-sig") as f:
 print(f"User: {len(all_data)-1} rows -> {out1}")
 
 # --- ChatMessagePair ---
-ws2 = sh.worksheet("ChatMessagePair")
-all_data2 = ws2.get_all_values()
+all_data2 = fetch_all_values(sh, "ChatMessagePair")
 header2 = all_data2[0]
 keep_idx2 = [i for i, h in enumerate(header2) if h not in CMP_EXCLUDE][:14]
 out2 = os.path.join(DATA_DIR, f"raw_kpi - ChatMessagePair{today_mmdd}.csv")
@@ -52,8 +69,7 @@ with open(out2, "w", newline="", encoding="utf-8-sig") as f:
 print(f"ChatMessagePair: {len(all_data2)-1} rows -> {out2}")
 
 # --- LoginHistory (2026-07-24追加: ログインベース参考版用。列=id/__typename/createdAt/updatedAt/userId、PIIなし) ---
-ws3 = sh.worksheet("LoginHistory")
-all_data3 = ws3.get_all_values()
+all_data3 = fetch_all_values(sh, "LoginHistory")
 out3 = os.path.join(DATA_DIR, f"raw_kpi - LoginHistory{today_mmdd}.csv")
 with open(out3, "w", newline="", encoding="utf-8-sig") as f:
     w = csv.writer(f)

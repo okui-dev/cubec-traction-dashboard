@@ -936,10 +936,13 @@ def set_weekly_xticks(ax, weeks, equal_spacing=False):
         ax.set_xticks(weeks)
         ax.set_xticklabels(labels, rotation=45, ha="right")
 
-# X-axis: extend to TARGET_DATE
+# X-axis: extend to TARGET_DATE or to the latest actual point, whichever is later.
+# (Once data passes the target date, a fixed TARGET_DATE limit clipped the trailing
+#  7-day point and its value label off the right edge — fixed 2026-09-08.)
 target_monday = week_monday(TARGET_DATE)
 fd3 = common_weeks[0]
-ld3_extended = target_monday
+ld3_latest = common_weeks[-1]
+ld3_extended = max(target_monday, ld3_latest)
 mt3, ml3 = [], []
 dt3 = next_month_start(fd3)
 while dt3 <= ld3_extended:
@@ -947,8 +950,23 @@ while dt3 <= ld3_extended:
         mt3.append(dt3)
         ml3.append(dt3.strftime("%Y/%m"))
     dt3 = next_month_start(dt3)
-ticks3 = [fd3] + mt3 + [ld3_extended]
-labels3 = [fd3.strftime("%Y/%m/%d")] + ml3 + [week_range_label(ld3_extended)]
+_ticks3_pairs = [(fd3, fd3.strftime("%Y/%m/%d"))] + list(zip(mt3, ml3))
+_ticks3_pairs.append((ld3_latest, trailing_week_label(ld3_latest)))
+if abs((ld3_latest - target_monday).days) > 10:
+    # Target week tick only when it does not collide with the latest-data tick
+    _ticks3_pairs.append((target_monday, week_range_label(target_monday)))
+_ticks3_pairs.sort(key=lambda p: p[0])
+ticks3 = [p[0] for p in _ticks3_pairs]
+labels3 = [p[1] for p in _ticks3_pairs]
+
+def annotate_endpoints(ax, xs, ys, fmt, color, skip_zero=False):
+    """Label first point (small, gray) and latest point (bold, series color) on a line chart."""
+    for idx, style in ((0, dict(fontsize=8, color="#555")),
+                       (-1, dict(fontsize=10, color=color, fontweight="bold"))):
+        if skip_zero and ys[idx] <= 0:
+            continue
+        ax.annotate(fmt.format(ys[idx]), (xs[idx], ys[idx]),
+                    textcoords="offset points", xytext=(0, 8), ha="center", **style)
 
 # ── Email registration plan lines (needed for Charts 2a, 3c, and 10b) ──
 LATEST_CONV_RATE = MATURED_CONV_RATE
@@ -1026,9 +1044,7 @@ ax2.plot(common_weeks, reg_vals, marker="o", markersize=4, linewidth=2, color="#
 ax2.set_ylabel("累計登録医師数", fontsize=11)
 ax2.text(0.01, 0.95, "累計登録医師数", transform=ax2.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#4CAF50")
-for idx in [0, -1]:
-    ax2.annotate(f"{reg_vals[idx]}", (common_weeks[idx], reg_vals[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax2, common_weeks, reg_vals, "{}", "#4CAF50")
 
 # WAU rate
 ax3 = axes3b[2]
@@ -1085,9 +1101,7 @@ ax2.set_ylabel("累計登録医師数", fontsize=11)
 ax2.text(0.01, 0.95, "累計登録医師数", transform=ax2.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#4CAF50")
 ax2.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax2.annotate(f"{reg_vals[idx]}", (common_weeks[idx], reg_vals[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax2, common_weeks, reg_vals, "{}", "#4CAF50")
 
 # Cumulative email registrations (below doctor registrations)
 ax2e = axes3c[2]
@@ -1100,9 +1114,7 @@ ax2e.set_ylabel("累計メール登録数", fontsize=11)
 ax2e.text(0.01, 0.95, "参考: 累計メール登録数", transform=ax2e.transAxes,
           fontsize=10, fontweight="bold", va="top", color="#1976D2")
 ax2e.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax2e.annotate(f"{email_reg_vals[idx]}", (common_weeks[idx], email_reg_vals[idx]),
-                  textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax2e, common_weeks, email_reg_vals, "{}", "#1976D2")
 
 # WAU rate (same target 10%)
 ax3 = axes3c[3]
@@ -2246,10 +2258,7 @@ ax1.set_title("A1. ヘビーユーザー分解（実績 vs 計画）", fontsize=
 ax1.text(0.01, 0.95, "ヘビーユーザー数（28日間10回以上検索・医師）", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#7B1FA2")
 ax1.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    if heavy_vals_cw[idx] > 0:
-        ax1.annotate(f"{heavy_vals_cw[idx]}", (common_weeks[idx], heavy_vals_cw[idx]),
-                     textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax1, common_weeks, heavy_vals_cw, "{}", "#7B1FA2", skip_zero=True)
 ax1.set_xlim(fd3 - timedelta(days=3), ld3_extended + timedelta(days=7))
 
 # 2段目: KPI1: 登録医師数
@@ -2263,9 +2272,7 @@ ax2.set_ylabel("累計登録医師数", fontsize=11)
 ax2.text(0.01, 0.95, "登録医師数", transform=ax2.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#4CAF50")
 ax2.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax2.annotate(f"{reg_vals[idx]}", (common_weeks[idx], reg_vals[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax2, common_weeks, reg_vals, "{}", "#4CAF50")
 
 # 3段目: 参考: メール登録数
 ax2e = axes3[2]
@@ -2278,9 +2285,7 @@ ax2e.set_ylabel("累計メール登録数", fontsize=11)
 ax2e.text(0.01, 0.95, "参考: メール登録数", transform=ax2e.transAxes,
           fontsize=10, fontweight="bold", va="top", color="#1976D2")
 ax2e.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax2e.annotate(f"{email_reg_vals[idx]}", (common_weeks[idx], email_reg_vals[idx]),
-                  textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax2e, common_weeks, email_reg_vals, "{}", "#1976D2")
 
 # 4段目: KPI2: MAU率 (計画線なし — 事業計画MAU率が月で上下するため目標非設定)
 ax3a = axes3[3]
@@ -2289,9 +2294,7 @@ ax3a.set_ylabel("MAU率 (%)", fontsize=11)
 ax3a.text(0.01, 0.95, "MAU率（MAU / 累計登録医師数）", transform=ax3a.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#E91E63")
 ax3a.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax3a.annotate(f"{mau_rate_vals_cw[idx]:.1f}%", (common_weeks[idx], mau_rate_vals_cw[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax3a, common_weeks, mau_rate_vals_cw, "{:.1f}%", "#E91E63")
 
 # 5段目: KPI3: ヘビー化率（Heavy / MAU） (計画線なし — Heavy÷MAUの結果指標)
 ax4 = axes3[4]
@@ -2301,9 +2304,7 @@ ax4.set_xlabel("週", fontsize=12)
 ax4.text(0.01, 0.95, "ヘビー化率（ヘビーユーザー / MAU）", transform=ax4.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#FF9800")
 ax4.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax4.annotate(f"{heavy_rate_vals_cw[idx]:.1f}%", (common_weeks[idx], heavy_rate_vals_cw[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax4, common_weeks, heavy_rate_vals_cw, "{:.1f}%", "#FF9800")
 
 ax4.set_xticks(ticks3)
 ax4.set_xticklabels(labels3, rotation=45, ha="right")
@@ -2336,10 +2337,7 @@ ax1.set_title("A1. ヘビーユーザー分解（実績 vs 計画）", fontsize=
 ax1.text(0.01, 0.95, "ヘビーユーザー数（28日間10回以上検索・医師）", transform=ax1.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#7B1FA2")
 ax1.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    if heavy_vals_cw[idx] > 0:
-        ax1.annotate(f"{heavy_vals_cw[idx]}", (common_weeks[idx], heavy_vals_cw[idx]),
-                     textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax1, common_weeks, heavy_vals_cw, "{}", "#7B1FA2", skip_zero=True)
 ax1.set_xlim(fd3 - timedelta(days=3), ld3_extended + timedelta(days=7))
 
 # 2段目: KPI1: 登録医師数
@@ -2353,9 +2351,7 @@ ax2.set_ylabel("累計登録医師数", fontsize=11)
 ax2.text(0.01, 0.95, "登録医師数", transform=ax2.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#4CAF50")
 ax2.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax2.annotate(f"{reg_vals[idx]}", (common_weeks[idx], reg_vals[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax2, common_weeks, reg_vals, "{}", "#4CAF50")
 
 # 3段目: 参考: メール登録数
 _app_email_target = int(APP_TARGET_REG / LATEST_CONV_RATE) if LATEST_CONV_RATE > 0 else APP_TARGET_REG
@@ -2372,9 +2368,7 @@ ax2e.set_ylabel("累計メール登録数", fontsize=11)
 ax2e.text(0.01, 0.95, "参考: メール登録数", transform=ax2e.transAxes,
           fontsize=10, fontweight="bold", va="top", color="#1976D2")
 ax2e.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax2e.annotate(f"{email_reg_vals[idx]}", (common_weeks[idx], email_reg_vals[idx]),
-                  textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax2e, common_weeks, email_reg_vals, "{}", "#1976D2")
 
 # 4段目: KPI2: MAU率 (計画線なし)
 ax3a = axes_app1[3]
@@ -2383,9 +2377,7 @@ ax3a.set_ylabel("MAU率 (%)", fontsize=11)
 ax3a.text(0.01, 0.95, "MAU率（MAU / 累計登録医師数）", transform=ax3a.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#E91E63")
 ax3a.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax3a.annotate(f"{mau_rate_vals_cw[idx]:.1f}%", (common_weeks[idx], mau_rate_vals_cw[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax3a, common_weeks, mau_rate_vals_cw, "{:.1f}%", "#E91E63")
 
 # 5段目: KPI3: ヘビー化率 (計画線なし)
 ax4 = axes_app1[4]
@@ -2395,9 +2387,7 @@ ax4.set_xlabel("週", fontsize=12)
 ax4.text(0.01, 0.95, "ヘビー化率（ヘビーユーザー / MAU）", transform=ax4.transAxes,
          fontsize=10, fontweight="bold", va="top", color="#FF9800")
 ax4.legend(loc="center left", fontsize=8, framealpha=0.7)
-for idx in [0, -1]:
-    ax4.annotate(f"{heavy_rate_vals_cw[idx]:.1f}%", (common_weeks[idx], heavy_rate_vals_cw[idx]),
-                 textcoords="offset points", xytext=(0, 8), ha="center", fontsize=8, color="#555")
+annotate_endpoints(ax4, common_weeks, heavy_rate_vals_cw, "{:.1f}%", "#FF9800")
 
 ax4.set_xticks(ticks3)
 ax4.set_xticklabels(labels3, rotation=45, ha="right")

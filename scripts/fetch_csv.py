@@ -26,7 +26,7 @@ def fetch_all_values(spreadsheet, tab_name):
 
 import base64
 SA_JSON_B64 = os.environ["SERVICE_ACCOUNT_JSON"]
-SHEET_ID = "1gPIZiWiKxTenKOUtnO7b5OqI0UycQ0qbrdv_SkEcKg0"
+SHEET_ID = "1CEK2JnNBwnCtpcPiXMSLcQntLUf-I616pfa9DVFEdNU"  # raw_kpi_v2（2026-10-02切替: 旧raw_kpiは更新遅延が多発）
 DATA_DIR = "dashboard/data"
 
 # JST = UTC+9. At UTC 16:00, JST is 01:00 next day.
